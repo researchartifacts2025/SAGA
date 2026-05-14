@@ -1,0 +1,6 @@
+# Default SAGA scheduler preset.
+
+preset: saga
+speculative_prefetch: true
+
+overrides: {}

@@ -1,0 +1,5 @@
+name: swe_bench
+n_tasks: 100
+n_tenants: 1
+arrival_rate_per_minute: 8.0
+description: "SWE-bench-style coding agents: 37 steps mean, 150 max."

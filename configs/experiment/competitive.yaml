@@ -1,0 +1,20 @@
+# @package _global_
+# Competitive ratio of WA-LRU vs LRU vs LRU+Prefix, all against Belady's oracle.
+
+defaults:
+  - override /cluster: a100_64gpu
+
+experiment:
+  name: competitive
+  description: "Competitive ratio against Belady oracle on production-like traces."
+  workloads:
+    - name: swe_bench
+      n_tasks: 150
+      arrival_rate_per_minute: 8.0
+    - name: web_arena
+      n_tasks: 150
+      arrival_rate_per_minute: 8.0
+  n_seeds: 3
+  seeds: [42, 123, 456]
+
+horizon_ms: 1800000

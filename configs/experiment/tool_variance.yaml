@@ -1,0 +1,19 @@
+# @package _global_
+# Tool-latency variance sensitivity. Mean tool latency held constant; the
+# coefficient of variation (CV) is varied through synthetic distributions.
+
+defaults:
+  - override /cluster: a100_64gpu
+
+experiment:
+  name: tool_variance
+  description: "SAGA TCT vs tool-latency CV. Paper Table tab:tool-variance."
+  workload:
+    name: swe_bench
+    n_tasks: 100
+    arrival_rate_per_minute: 8.0
+  coefficient_of_variation: [0.5, 1.0, 1.5, 2.0, 3.0]
+  n_seeds: 2
+  seeds: [42, 123]
+
+horizon_ms: 1800000

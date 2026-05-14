@@ -1,0 +1,21 @@
+# @package _global_
+# Execution-strategy tradeoff: pure BFS vs pure DFS vs SAGA hybrid.
+
+defaults:
+  - override /cluster: a100_32gpu
+
+experiment:
+  name: bfsdfs
+  description: "BFS / DFS / Hybrid execution strategies on SWE-bench."
+  workload:
+    name: swe_bench
+    n_tasks: 150
+    arrival_rate_per_minute: 8.0
+  strategies:
+    - bfs
+    - dfs
+    - hybrid
+  n_seeds: 3
+  seeds: [42, 123, 456]
+
+horizon_ms: 1800000

@@ -1,0 +1,12 @@
+# 8 nodes x 8 A100-80GB GPUs with TP=4 -> 16 workers.
+# Capacity and throughput coefficients calibrated for Llama-3-70B with GQA.
+
+overrides:
+  n_nodes: 8
+  gpus_per_node: 8
+  tensor_parallel: 4
+  kv_capacity_tokens_per_worker: 800000
+  decode_tokens_per_ms: 38.0
+  prefill_tokens_per_ms: 850.0
+  pressure_low: 0.7
+  pressure_high: 0.9

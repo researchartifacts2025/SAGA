@@ -1,0 +1,23 @@
+# @package _global_
+# Multi-tenant SLO attainment under BurstGPT-derived workload.
+
+defaults:
+  - override /cluster: a100_64gpu
+
+experiment:
+  name: fairness
+  description: "10-tenant BurstGPT workload, SLO attainment by tenant class."
+  workload:
+    name: burst_gpt
+    n_tasks: 250
+    n_tenants: 10
+    arrival_rate_per_minute: 12.0
+  presets:
+    - vllm
+    - sglang
+    - llumnix
+    - saga
+  n_seeds: 3
+  seeds: [42, 123, 456]
+
+horizon_ms: 1800000

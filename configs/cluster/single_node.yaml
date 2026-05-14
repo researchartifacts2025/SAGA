@@ -1,0 +1,9 @@
+# Single-node cluster (for the quick demo + CI).
+
+overrides:
+  n_nodes: 1
+  gpus_per_node: 4
+  tensor_parallel: 4
+  kv_capacity_tokens_per_worker: 400000
+  decode_tokens_per_ms: 38.0
+  prefill_tokens_per_ms: 850.0

@@ -1,0 +1,25 @@
+# @package _global_
+# Each ablation row removes one SAGA component.
+
+defaults:
+  - override /cluster: a100_64gpu
+
+experiment:
+  name: ablation
+  description: "Component removal ablation on SWE-bench."
+  workload:
+    name: swe_bench
+    n_tasks: 150
+    arrival_rate_per_minute: 8.0
+  presets:
+    - saga
+    - saga_no_walru
+    - saga_no_ttl
+    - saga_no_prefetch
+    - saga_no_affinity
+    - saga_no_stealing
+    - saga_no_afs
+  n_seeds: 3
+  seeds: [42, 123, 456]
+
+horizon_ms: 1800000

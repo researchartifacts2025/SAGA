@@ -1,0 +1,7 @@
+# Config for `saga evaluate` (aggregator).
+
+input_glob: "runs/**/e2e.json"
+
+hydra:
+  run:
+    dir: runs/eval/${now:%Y-%m-%d}/${now:%H-%M-%S}

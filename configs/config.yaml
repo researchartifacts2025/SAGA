@@ -1,0 +1,22 @@
+# Top-level Hydra config for `saga simulate`.
+# Override any field on the command line, e.g.
+#   python -m saga.entrypoints.simulate workload=web_arena scheduler=saga seed=7
+
+defaults:
+  - _self_
+  - workload: swe_bench
+  - cluster: a100_64gpu
+  - scheduler: saga
+  - experiment: null
+
+seed: 42
+horizon_ms: 1200000
+slo_multiplier: 1.5
+log_level: INFO
+
+hydra:
+  run:
+    dir: runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}

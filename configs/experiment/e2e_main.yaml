@@ -1,0 +1,28 @@
+# @package _global_
+# End-to-end SWE-bench + WebArena across all systems in the comparison.
+
+defaults:
+  - override /cluster: a100_64gpu
+
+experiment:
+  name: e2e_main
+  description: "End-to-end TCT and memory utilization vs all baselines."
+  workloads:
+    - name: swe_bench
+      n_tasks: 200
+      arrival_rate_per_minute: 8.0
+    - name: web_arena
+      n_tasks: 200
+      arrival_rate_per_minute: 8.0
+  presets:
+    - vllm
+    - vllm_apc
+    - sglang
+    - llumnix
+    - trt_llm_scaffolding
+    - vllm_kvflow
+    - saga
+  n_seeds: 3
+  seeds: [42, 123, 456]
+
+horizon_ms: 1800000

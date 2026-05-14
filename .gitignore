@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing / type-checking
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Native extension build artifacts
+src/saga/_native*.so
+src/saga/_native*.pyd
+src/saga/_native*.dylib
+
+# Hydra/run artifacts (runtime-created, never checked in)
+runs/
+multirun/
+work_dir/
+results/
+local_data/
+datasets/
+checkpoints/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env.local
+*.pem
+*.key
+secrets.yaml

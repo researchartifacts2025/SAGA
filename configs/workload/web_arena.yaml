@@ -1,0 +1,5 @@
+name: web_arena
+n_tasks: 200
+n_tenants: 1
+arrival_rate_per_minute: 8.0
+description: "WebArena browser agents: 18 steps mean."

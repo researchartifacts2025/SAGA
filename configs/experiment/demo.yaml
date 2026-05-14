@@ -1,0 +1,16 @@
+# @package _global_
+# 60-second sanity simulation. Used by `make demo`.
+
+defaults:
+  - override /workload: swe_bench
+  - override /cluster: single_node
+
+experiment:
+  name: demo
+  description: "20-task SWE-bench demo on single-node."
+
+horizon_ms: 120000
+
+workload:
+  n_tasks: 20
+  arrival_rate_per_minute: 8.0
