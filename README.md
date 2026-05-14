@@ -496,7 +496,7 @@ saga/
 │                                  competitive, sensitivity, tool_variance
 ├── csrc/                          C++17 hot-path kernels (OpenMP)
 │   └── saga_native.cpp            WA-LRU + Bélády + lock-free SessionTable
-├── src/saga/
+├── src/
 │   ├── core/                      AEG + domain types
 │   ├── cache/                     policies, TTL, manager, DRAM tier
 │   ├── scheduler/                 router, work-stealer, BFS/DFS/Hybrid,
