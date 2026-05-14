@@ -1,0 +1,121 @@
+// SAGA global coordinator service.
+//
+// Workers and external clients use this service to:
+//   * submit a new Agent Execution Graph (one per task)
+//   * route a new request to a worker (returns a worker_id + cache hint)
+//   * report a step completion + tool result (drives AFS, TTL, prefetch)
+//   * advertise readiness for work stealing
+//
+// Designed for the P99 worker -- coordinator < 5 ms target on the paper's
+// IB cluster: every RPC is non-streaming except `EventStream`, which uses a
+// bidirectional stream to batch 10 ms windows of step events.
+
+syntax = "proto3";
+
+package saga;
+
+// ------------------------------------------------------------- types
+
+message AEGNodePB {
+  int32 index             = 1;
+  string tool_name        = 2;      // "shell" | "read_file" | ...
+  int32 prompt_tokens_est = 3;
+  int32 output_tokens_est = 4;
+  int32 observation_tokens_est = 5;
+  bool  is_terminal       = 6;
+}
+
+message AEGEdgePB {
+  int32 src        = 1;
+  int32 dst        = 2;
+  double probability = 3;
+}
+
+message AgentExecutionGraphPB {
+  string graph_id          = 1;
+  repeated AEGNodePB nodes = 2;
+  repeated AEGEdgePB edges = 3;
+  string workload_kind     = 4;
+  double termination_prob  = 5;
+}
+
+message TaskPB {
+  string task_id        = 1;
+  string tenant_id      = 2;
+  string workload_kind  = 3;
+  double submit_time_ms = 4;
+  int32  n_steps        = 5;
+  string aeg_id         = 6;
+  double expected_tct_ms = 7;
+}
+
+// ----------------------------------------------------------- requests
+
+message SubmitTaskRequest {
+  TaskPB                task = 1;
+  AgentExecutionGraphPB aeg  = 2;
+  double                tenant_weight = 3;
+}
+
+message SubmitTaskResponse {
+  bool   accepted = 1;
+  string reason   = 2;
+  int32  assigned_worker_id = 3;
+}
+
+message RouteRequest {
+  string session_id  = 1;
+  string tenant_id   = 2;
+  int64  prefix_hash = 3;
+}
+
+message RouteResponse {
+  int32  worker_id          = 1;
+  string reason             = 2;
+  bool   cache_hit_expected = 3;
+}
+
+message StepEvent {
+  string session_id        = 1;
+  int32  aeg_node_index    = 2;
+  double now_ms            = 3;
+  int32  prefill_tokens    = 4;
+  int32  decode_tokens     = 5;
+  double tool_call_ms      = 6;     // 0 means no tool call this step
+  string tool_name         = 7;
+  bool   is_terminal       = 8;
+  int32  worker_id         = 9;
+}
+
+message Ack {}
+
+message WorkerStatus {
+  int32  worker_id        = 1;
+  int32  queue_depth      = 2;
+  double memory_pressure  = 3;
+  double utilization      = 4;
+  double busy_until_ms    = 5;
+}
+
+message StealRequest {
+  int32 thief_worker_id = 1;
+  double now_ms         = 2;
+}
+
+message StealResponse {
+  bool   success         = 1;
+  int32  victim_worker_id = 2;
+  string session_id      = 3;
+  double migration_ms    = 4;
+  string reason          = 5;
+}
+
+// ----------------------------------------------------------- service
+
+service SagaCoordinatorService {
+  rpc SubmitTask     (SubmitTaskRequest)              returns (SubmitTaskResponse);
+  rpc Route          (RouteRequest)                   returns (RouteResponse);
+  rpc EventStream    (stream StepEvent)               returns (Ack);
+  rpc HeartbeatStream(stream WorkerStatus)            returns (Ack);
+  rpc Steal          (StealRequest)                   returns (StealResponse);
+}

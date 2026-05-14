@@ -64,7 +64,23 @@ docs = [
     "mkdocs-material>=9.5,<10.0",
     "mkdocstrings[python]>=0.24,<1.0",
 ]
+
+# Full cluster path: vLLM v0.6.0 + Ray 2.9 + gRPC + torch 2.1 + HF tokenizers.
+# Pins match the paper's Llama-3-70B serving stack on 64x A100-80GB.
+serving = [
+    "vllm==0.6.0",
+    "ray>=2.9.0,<3.0",
+    "grpcio>=1.60,<2.0",
+    "grpcio-tools>=1.60,<2.0",
+    "torch>=2.1.2",
+    "transformers>=4.40,<5.0",
+    "huggingface-hub>=0.20,<1.0",
+    "protobuf>=4.25,<6.0",
+    "pybind11>=2.11,<3.0",
+]
+
 all = ["saga-sched[dev,docs]"]
+all-serving = ["saga-sched[dev,docs,serving]"]
 
 [project.scripts]
 saga = "saga.cli:app"
@@ -109,6 +125,9 @@ ignore = [
     "RUF012",
     "RUF046",
     "B007",
+    "B017",
+    "N806",
+    "SIM105",
     "B008",
     "B028",
     "PLC0415",
