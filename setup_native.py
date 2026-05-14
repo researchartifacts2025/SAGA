@@ -75,11 +75,18 @@ ext = Extension(
 
 
 if __name__ == "__main__":
+    # We pass ``packages=["saga"]`` and ``package_dir={"saga": "src/saga"}`` so
+    # setuptools' ``build_ext --inplace`` places the compiled module at
+    # ``src/saga/_native.<platform>.{so,pyd,dylib}``. Earlier versions used the
+    # shorthand ``package_dir={"": "src"}`` which combined with empty-package
+    # auto-discovery could flatten the ``src/saga/`` tree on some setuptools
+    # versions; the explicit form below avoids that.
     setup(
         name="saga-native-shim",
         version="0.0.0",
         description="Build shim for the optional SAGA native extension.",
         ext_modules=[ext],
-        package_dir={"": "src"},
+        packages=["saga"],
+        package_dir={"saga": "src/saga"},
         zip_safe=False,
     )

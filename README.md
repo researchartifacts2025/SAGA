@@ -463,7 +463,7 @@ through the call stack.
 saga/
 ├── csrc/                          C++17 hot-path kernels (OpenMP, pybind11)
 │   └── saga_native.cpp            WA-LRU · Bélády · predict_reuse · SessionTable
-├── src/saga/
+├── src/
 │   ├── core/                      AEG · domain types
 │   ├── cache/                     policies · TTL · manager · DRAM tier
 │   ├── scheduler/                 router · stealer · BFS/DFS/Hybrid · coordinator
@@ -486,18 +486,6 @@ saga/
 ├── pyproject.toml
 └── requirements.txt
 ```
-
----
-
-## 🗺️ Roadmap
-
-- [x] **v1.0** – Faithful simulator of the full paper (this release)
-- [x] **v1.0** – C++17 + OpenMP acceleration with NumPy zero-copy
-- [x] **v1.0** – LangChain / AutoGen / CrewAI bridges
-- [ ] **v1.1** – Real vLLM `WorkerExtension` plugin
-- [ ] **v1.2** – Geo-distributed scheduling (paper §10, future work)
-- [ ] **v1.3** – Speculative execution integration (SpecActions, Sherlock)
-- [ ] **v2.0** – Native CUDA streams for cache prefetch overlap
 
 ---
 
