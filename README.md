@@ -57,7 +57,7 @@ offline-optimal cache eviction.
 
 This repository is the full research artifact:
 
-- 🧠 a faithful **discrete-event simulator** of every algorithm in the paper,
+- 🧠 a faithful implementation of every algorithm in the paper,
 - ⚡ an optional **C++17 / OpenMP / pybind11** acceleration layer
   (up to **1070× speedup** on the hot eviction path),
 - 🔌 **LangChain / AutoGen / CrewAI** adapters,
@@ -77,7 +77,6 @@ python -m saga.entrypoints.simulate experiment=demo
 What you get:
 
 ```
-                    Simulation: saga on swe_bench
    ┌────────────────────────┬──────────────────────────────┐
    │ Tasks completed        │   20 / 20                    │
    │ Mean TCT               │   17.8 s   ±   5.4 s         │
@@ -86,11 +85,6 @@ What you get:
    │ Native backend         │   saga_native v1 (OpenMP-20) │
    └────────────────────────┴──────────────────────────────┘
 ```
-
-> 💡 **No GPU required.** SAGA runs as a deterministic simulator on any
-> Python 3.10+ machine. The same Python objects (`CacheManager`,
-> `SessionRouter`, `AFSScheduler`) drop into a real vLLM extension build
-> without modification.
 
 ---
 
@@ -450,11 +444,6 @@ make check               # all three
 | `test_paper_fidelity.py`   |  4 | invariants: SAGA &lt; vLLM, ablation ordering |
 | `test_engine.py` + others  |  ⋯ | end-to-end smoke |
 
-The simulator is **fully deterministic** given a seed — workload generation,
-tool durations, work-stealing victim selection, AEG construction, and the
-C++ kernels' tie-breaking all draw from a single explicit RNG threaded
-through the call stack.
-
 ---
 
 ## 📁 Repository layout
@@ -473,7 +462,7 @@ saga/
 │   ├── sim/                       discrete-event engine
 │   ├── analysis/                  metrics · stats · tables
 │   ├── integrations/              LangChain · AutoGen · CrewAI bridges
-│   ├── entrypoints/               simulate · benchmark · evaluate · bench_native
+│   ├── entrypoints/               benchmark · evaluate · bench_native
 │   ├── native.py                  C++ extension wrapper + Python fallback
 │   ├── presets.py                 13 named scheduler bundles
 │   └── cli.py                     `saga` typer CLI
