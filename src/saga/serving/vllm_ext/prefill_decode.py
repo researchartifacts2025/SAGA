@@ -5,17 +5,23 @@ the most-likely successor node with the running batch's decode. On vLLM v0.6
 the natural seam is the ``model_executor`` -- specifically the prefill
 launcher, which controls the CUDA stream used for the KV-block memcpy.
 
-This binder
+This binder is loaded by every vLLM worker on the 64-A100 cluster. It
 
 1.  Owns one *prefetch* CUDA stream per worker, separate from the *compute*
-    stream used by the running batch. Decoupling the streams lets the GPU
+    stream used by the running batch. Decoupling the streams lets the A100
     scheduler run them concurrently as long as their data dependencies do
     not cross.
 2.  When SAGA's :class:`GlobalCoordinator` signals an upcoming successor,
-    enqueues a :func:`saga.serving.cuda.prefetch_blocks` on the prefetch
-    stream targeting the predicted block IDs.
+    enqueues a :func:`saga.serving.cuda.prefetch_blocks` (backed by
+    :file:`csrc/cuda/prefetch_stream.cu`) on the prefetch stream targeting
+    the predicted block IDs.
 3.  Records a CUDA event on the prefetch stream and inserts a wait edge on
     the compute stream the moment the successor enters the running batch.
+
+``torch`` is imported lazily inside :meth:`install`; CPU-only hosts can
+import this module for unit tests, but the binder does useful work only
+when the worker has a CUDA-capable build of torch and the SAGA CUDA
+kernels are compiled (``python setup_cuda.py build_ext --inplace``).
 """
 
 from __future__ import annotations

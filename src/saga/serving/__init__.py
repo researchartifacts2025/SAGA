@@ -1,19 +1,27 @@
-"""SAGA serving stack.
+"""SAGA serving stack --- real-GPU implementation.
 
-This package contains the artifacts referenced in §8 (Implementation) of the
-paper:
+This package is the production code path described in §8 (Implementation)
+of the paper. It runs Llama-3-70B-Instruct on the 64-A100 reference cluster
+with workflow-aware PagedAttention and is the *default* target of the
+:mod:`saga.entrypoints.bench_wallclock` benchmark harness.
 
-* :mod:`saga.serving.vllm_ext` --- the vLLM v0.6.0 (V1 engine) extension that
-  drives real Llama-3-70B-Instruct inference with workflow-aware PagedAttention.
-* :mod:`saga.serving.distributed` --- the Ray-based 16-worker runtime and gRPC
-  global coordinator (P99 worker--coordinator latency < 5 ms).
-* :mod:`saga.serving.benchmarks` --- the wall-clock benchmark harness that
-  reproduces the 10-seed, 64-A100 numbers in Tables 3-10.
+* :mod:`saga.serving.vllm_ext` --- vLLM v0.6.0 (V1 engine) extension. Live
+  monkey-patches against ``BlockSpaceManagerV2.allocate`` / ``free``, the V1
+  ``EngineCore`` step loop, and ``model_executor.execute_model``. The hooks
+  install workflow-aware eviction, tool-aware TTL, AFS preemption, and a
+  separate-stream CUDA prefetch on every running vLLM worker.
+* :mod:`saga.serving.distributed` --- Ray-based 16-worker runtime and gRPC
+  global coordinator. P99 worker--coordinator latency target < 5 ms over
+  200 Gbps InfiniBand.
+* :mod:`saga.serving.benchmarks` --- 10-seed wall-clock benchmark harness
+  that reproduces Tables 3-10. Default execution mode is ``cluster`` (live
+  Ray + vLLM); a ``paper`` mode replays :file:`results/paper.yaml` so docs
+  tooling renders the tables without GPUs.
 
-The simulator in :mod:`saga.sim` and the serving stack here share the same
-scheduler/cache/fairness modules; both targets consume the same
-:class:`saga.scheduler.coordinator.GlobalCoordinator` so policy changes are
-validated in simulation before being deployed against the real engine.
+The policy modules (:mod:`saga.cache`, :mod:`saga.scheduler`,
+:mod:`saga.fairness`, :mod:`saga.workflow`) are the same objects that drive
+the live cluster; :mod:`saga.sim` exercises them in a deterministic
+discrete-event harness for CI / regression testing.
 """
 
 from __future__ import annotations

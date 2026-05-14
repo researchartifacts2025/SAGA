@@ -19,8 +19,9 @@ Layout::
         +-> Worker[15]  (Ray actor, GPUs 4-7,  node 7)
 
 The coordinator is the same :class:`saga.scheduler.coordinator.GlobalCoordinator`
-that the simulator uses; only the transport differs. This lets us validate
-policy changes in the simulator and ship the same code to the cluster.
+that the unit tests exercise in :mod:`saga.sim`; only the transport differs.
+Policy changes are pinned by the unit tests on a CPU host, then shipped
+unmodified to the cluster.
 
 Submodules
 ----------

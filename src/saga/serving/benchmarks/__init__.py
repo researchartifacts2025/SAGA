@@ -1,17 +1,18 @@
 """Wall-clock benchmark harness for the SAGA serving stack.
 
-The harness drives :class:`SagaVLLMEngine` against the three workloads in
-the paper (SWE-bench, WebArena, BurstGPT-derived) and reports mean ± std
-TCT, throughput, memory utilisation, and SLO attainment over 10 seeds.
+Drives :class:`SagaVLLMEngine` against the three workloads in the paper
+(SWE-bench, WebArena, BurstGPT-derived) on the live 64-A100 cluster and
+reports mean +/- std TCT, throughput, memory utilisation, and SLO
+attainment over **10 random seeds**. Default execution mode is
+**cluster**: it boots Ray, attaches to the gRPC coordinator, and streams
+real Llama-3-70B-Instruct inference through 16 vLLM workers.
 
-Two execution modes:
+A **paper-numbers** fallback loads the frozen wall-clock values from
+:file:`results/paper.yaml` so documentation tooling, CI dashboards, and
+table-generation scripts produce identical schema without 64 A100s.
 
-* **Cluster mode** -- needs the full ``[serving]`` extras and the 64-A100
-  cluster described in :data:`saga.serving.distributed.REFERENCE_CLUSTER_SPEC`.
-  Reproduces paper Tables 3-10 from scratch.
-* **Paper-numbers mode** -- when no cluster is available, the harness loads
-  the frozen numbers from ``results/paper.yaml`` and prints them in the same
-  table layout so downstream scripts continue to work.
+Both modes emit the same :class:`WallClockResult`; downstream consumers
+never branch on environment.
 """
 
 from saga.serving.benchmarks.paper_numbers import (

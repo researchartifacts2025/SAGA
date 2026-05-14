@@ -22,8 +22,10 @@ preemption only when a low-priority task blocks a high-priority task for
 more than ``preempt_block_threshold_ms``. Both knobs are driven by the
 coordinator config.
 
-Like :mod:`saga.serving.vllm_ext.paged_attention`, this module is safe to
-import without vLLM installed.
+The ``vllm`` import is deferred to :meth:`install` so this module is
+importable on CPU hosts for unit tests; on the cluster, :meth:`install`
+patches the live V1 ``EngineCore.scheduler`` methods and the hook starts
+ticking the coordinator on every step.
 """
 
 from __future__ import annotations

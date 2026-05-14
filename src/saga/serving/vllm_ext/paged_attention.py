@@ -1,19 +1,27 @@
 """PagedAttention extension: replace vLLM's LRU eviction with WA-LRU.
 
-vLLM v0.6.0 picks an eviction victim inside ``BlockSpaceManagerV2.free`` /
-``BlockSpaceManagerV2.allocate``. SAGA installs a small adapter that
+This module installs SAGA's workflow-aware KV-cache eviction inside a live
+vLLM v0.6.0 (V1 engine) deployment. It runs in every Ray worker on the
+64-A100 reference cluster.
 
-1.  Maintains a per-session view of cached prefix length (block count ×
+vLLM v0.6.0 picks an eviction victim inside ``BlockSpaceManagerV2.free`` /
+``BlockSpaceManagerV2.allocate``. The adapter below
+
+1.  Maintains a per-session view of cached prefix length (block count x
     ``block_size`` tokens).
 2.  Maps each session to its :class:`AgentExecutionGraph` and current node so
     :class:`saga.cache.policies.WALRUPolicy` can score eviction candidates.
 3.  Sets a TTL on a session's blocks via :class:`saga.cache.ttl.ToolTTLPolicy`
-    when the agent enters a tool call.
+    when the agent enters a tool call (paper Algorithm 1).
+4.  Defers victim selection to :mod:`saga.serving.cuda` (cooperative-group
+    argmin on the GPU) when the resident pool is large; small pools score
+    on the host via :class:`saga.cache.policies.WALRUPolicy`.
 
-The hook is *additive*: importing this module is safe without vLLM installed
-(the simulator path uses the same :class:`CacheManager`). Calling
-:meth:`install` without vLLM logs a warning and runs the hook in
-in-process-only mode so unit tests still exercise the bookkeeping path.
+The hook is additive: vLLM's allocator delegates to SAGA's bookkeeping but
+the actual KV-block memory is owned by vLLM. The ``vllm`` import is
+deferred to :meth:`install` so this module is importable on CPU hosts for
+unit tests; on the cluster, :meth:`install` patches the real
+``BlockSpaceManagerV2`` and the hook runs live.
 """
 
 from __future__ import annotations

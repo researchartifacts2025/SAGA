@@ -1,11 +1,15 @@
 """Pythonic wrapper over the ``saga._cuda`` extension.
 
-Loaded by :mod:`saga.serving.vllm_ext.prefill_decode` and the wall-clock
-benchmark harness. If ``saga._cuda`` is not built, all functions become
-no-ops and ``is_cuda_available()`` returns ``False``. This lets the same
-code path run on machines without nvcc/torch.cuda.
+Loaded by :mod:`saga.serving.vllm_ext.prefill_decode` (separate-stream
+prefetch), :mod:`saga.serving.distributed.coordinator` (KV-migration
+launches), and the wall-clock benchmark harness. On the 64-A100 cluster
+every call here dispatches to a real CUDA kernel from
+:file:`csrc/cuda/*.cu`; the wrappers return ``int`` byte counts so the
+worker can verify the transfer completed.
 
-Build the extension with:
+For development on machines without nvcc/torch.cuda the wrapper degrades
+to ``int(0)`` returns and ``is_cuda_available() == False`` so unit tests
+import cleanly. Production deployments **must** build the extension::
 
     pip install "torch>=2.1.2" "pybind11>=2.11"
     python setup_cuda.py build_ext --inplace

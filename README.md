@@ -37,10 +37,10 @@
 <br/>
 
 [**Quick Start →**](#-quick-start) •
-[**Two Modes →**](#%EF%B8%8F-two-modes-simulator--full-cluster) •
+[**On the Cluster →**](#-on-the-64a100-cluster) •
 [**Architecture →**](#%EF%B8%8F-architecture) •
 [**Results →**](#-results) •
-[**HPC →**](#-hpc-acceleration) •
+[**CUDA →**](#-cuda--cpp-acceleration) •
 [**Integrations →**](#-use-it-as-a-library) •
 [**Run the Paper →**](#-run-the-paper)
 
@@ -59,87 +59,95 @@ makes the agent *workflow* the first-class schedulable unit. The result on a
 time vs vLLM+APC at **99.2 %** multi-tenant SLO, while staying within
 **1.31×** of Bélády's offline-optimal cache eviction.
 
-This repository is the complete artifact for the HPDC '26 paper:
+- 🔌 **vLLM v0.6.0 (V1 engine) extension** — monkey-patches
+  `BlockSpaceManagerV2.allocate/free`, the V1 `EngineCore` step loop, and the
+  `model_executor.execute_model` callback to install WA-LRU eviction,
+  tool-aware TTL, AFS preemption, and separate-stream prefetch on a stock
+  `pip install vllm==0.6.0` deployment.
+- 🚦 **Ray + gRPC distributed runtime** — 16 Ray actors (one per TP=4
+  vLLM instance) talking to a gRPC global coordinator. Hot path is unary
+  gRPC, off Ray's pickle layer: **P99 worker↔coordinator latency ≤ 5 ms**.
+- 🦙 **Llama-3-70B-Instruct** in FP16 with GQA (n_kv=8, ~10.7 GiB KV per
+  32K session); the configuration is pinned in code and verified with
+  `assert_paper_invariants()`.
+- ⚙️ **~1.2K lines of CUDA** for separate-stream KV prefetch, Llumnix-style
+  cross-device KV migration, on-device WA-LRU scoring with cooperative-group
+  argmin, TTL-aware PagedAttention victim picker, prefix-overlap LCP, and
+  paged-pool compaction. Target `sm_70 / sm_80 / sm_90`.
+- 🔗 **LangChain / AutoGen / CrewAI** adapters convert framework callbacks
+  to AEGs and hand them to the coordinator at session admission.
+- 📊 **10-seed wall-clock harness** drives the live cluster, emits the
+  paper's Tables 3–10, and is the **default** path of
+  `python -m saga.entrypoints.bench_wallclock`.
 
-- 🔌 **vLLM v0.6.0 (V1 engine) extension** with workflow-aware PagedAttention,
-- 🚦 **Ray + gRPC distributed runtime** for the 16-worker (TP=4) deployment,
-- 🦙 **Llama-3-70B-Instruct** serving configuration,
-- ⚙️ **~1.2K lines of CUDA** for separate-stream prefetch, KV migration,
-  WA-LRU scoring, prefix-overlap, and paged-pool compaction,
-- 🧠 **Discrete-event simulator** of every algorithm (no GPUs required),
-- 🔗 **LangChain / AutoGen / CrewAI** adapters,
-- 📊 **10-seed wall-clock harness** that emits the paper's Tables 3–10.
-
----
-
-## 🛠️ Two Modes: Simulator + Full Cluster
-
-The same Python objects (`CacheManager`, `WALRUPolicy`, `SessionRouter`,
-`AFSScheduler`, …) drive **both** the simulator (laptop) and the live vLLM
-cluster (64 A100-80GB). Pick the mode that matches your environment:
-
-| | 🧠 **Simulator path** | 🚦 **Full-cluster path** |
-|---|---|---|
-| Install | `pip install -e .` | `pip install -e '.[serving]'` |
-| Hardware | any laptop, Python 3.10+ | 8 nodes × 8 A100-80GB, NVLink + 200 Gbps IB |
-| Drives | discrete-event engine in `saga.sim` | real Llama-3-70B inference via vLLM 0.6.0 |
-| Distributed runtime | single-process | Ray actors + gRPC coordinator |
-| CUDA kernels | not needed | `python setup_cuda.py build_ext --inplace` |
-| Wall-clock numbers | calibrated to paper ordering | wall-clock measurement over 10 seeds |
-| Use it for | algorithm dev, CI, demo | wall-clock reproduction, deployment |
-
-Both modes are validated in CI (98 tests; the serving path uses mocks where
-the real runtime is absent, so unit tests run on any host).
+Pure-Python policy modules (`WALRUPolicy`, `ToolTTLPolicy`, `SessionRouter`,
+`AFSScheduler`, `AgentExecutionGraph`) are the **same objects** that the
+live cluster uses. A discrete-event harness in `saga.sim` exercises them
+without GPUs for CI / unit-test purposes, but it is **not the serving
+path** — it is a validation tool for policy changes.
 
 ---
 
-## ⚡ See it in 30 seconds (simulator)
+## 🚀 Quick Start
 
 ```bash
 git clone <your-fork-url> saga && cd saga
-pip install -e .
-saga show all                    # architecture + knobs + native build state
-python -m saga.entrypoints.simulate experiment=demo
-```
+pip install -e '.[serving]'                       # vllm 0.6.0 + ray 2.9 + grpcio + torch 2.1
+python setup_cuda.py build_ext --inplace          # 1.2K lines of CUDA (sm_70/80/90)
+make proto                                        # gRPC stubs from saga_coordinator.proto
 
-```
-                    Simulation: saga on swe_bench
-   ┌────────────────────────┬──────────────────────────────┐
-   │ Tasks completed        │   20 / 20                    │
-   │ Mean TCT               │   17.8 s   ±   5.4 s         │
-   │ Cache hit rate         │   96.2 %                     │
-   │ Regen ratio            │    0.067                     │
-   │ Native backend         │   saga_native v1 (OpenMP-20) │
-   └────────────────────────┴──────────────────────────────┘
-```
-
-## 🚦 See it on the cluster (full path)
-
-On the paper's reference cluster (`results/paper.yaml`):
-
-```bash
-# 1. install
-pip install -e '.[serving]'
-
-# 2. build the CUDA kernels  (~1.2K lines, sm_70 / sm_80 / sm_90)
-python setup_cuda.py build_ext --inplace
-
-# 3. (optional) generate gRPC stubs
-make proto
-
-# 4. start the coordinator on the head node
+# On the head node:
 python -m saga.serving.distributed.grpc_coordinator
 
-# 5. launch 16 Ray workers (TP=4 each), one per vLLM instance
-ray start --head
-python -m saga.serving.benchmarks.runner  # wall-clock SWE-bench + WebArena
+# On each of the 8 GPU nodes:
+ray start --address=<head>:6379
+python -m saga.serving.distributed.ray_cluster
+
+# Drive the 10-seed wall-clock benchmark (Tables 3-10):
+python -m saga.entrypoints.bench_wallclock
 ```
 
-The runner auto-detects whether vLLM + Ray + CUDA are available. With them
-present, it streams real Llama-3-70B inference and emits 10-seed wall-clock
-TCTs; without them, it loads `results/paper.yaml` and emits the canonical
-paper numbers in the identical schema, so downstream scripts work in either
-environment.
+The cluster is **16 vLLM workers × 4 GPUs each = 64 A100s** running
+Llama-3-70B-Instruct. The coordinator runs on a separate node; workers
+register over gRPC at boot and stream step observations back on a batched
+bi-directional stream (P99 RTT ≤ 5 ms).
+
+---
+
+## 🚦 On the 64×A100 cluster
+
+The reference cluster is pinned in [`src/saga/serving/distributed/cluster_spec.py`](src/saga/serving/distributed/cluster_spec.py):
+
+```text
+   Cluster: paper-64a100                       Llama-3-70B-Instruct, FP16
+   --------                                    --------
+   8 nodes × 8× A100-80GB                      80 layers · 64 heads · n_kv=8 · d=128
+   2× AMD EPYC 7763 / node                     ~10.7 GiB KV / 32K session
+   1 TB DDR4-3200 / node                       tensor parallelism = 4 / instance
+   NVLink intra-node + 200 Gbps IB             16 instances × 4 GPUs = 64 GPUs
+```
+
+```python
+from saga.serving.vllm_ext import LLAMA3_70B, assert_paper_invariants
+from saga.serving.distributed import REFERENCE_CLUSTER_SPEC
+from saga.serving.distributed.cluster_spec import assert_paper_invariants as cluster_inv
+
+assert_paper_invariants(LLAMA3_70B)        # validates 10.7 GiB KV / 32K, TP|GPU
+cluster_inv(REFERENCE_CLUSTER_SPEC)        # validates 16 workers, 64 GPUs, TP=4
+```
+
+Each Ray actor calls `SagaVLLMEngine.serve()`, which boots a real vLLM
+0.6.0 engine, installs the three workflow-aware seams
+(`WALRUBlockManagerHook`, `V1EngineHook`, `PrefillDecodeBinder`), and
+launches the separate prefetch CUDA stream. From that point onward every
+`engine.generate(prompt, session_id=...)` runs real prefill/decode kernels
+on Llama-3-70B-Instruct.
+
+> **CI / development on a laptop?** The pure-Python policy modules in
+> `saga.cache`, `saga.scheduler`, `saga.fairness`, `saga.workflow` are
+> unit-tested by a discrete-event harness in `saga.sim`. Those tests are
+> *validation* tools: they pin down the algorithm, not the inference path.
+> A CPU host runs them; a GPU cluster runs the actual workload.
 
 ---
 
@@ -235,26 +243,17 @@ flowchart TB
 
 ---
 
-## 🚀 Quick Start
+## 🧰 Build & install matrix
 
-```bash
-# 1. Install  --- simulator path (no GPUs required)
-git clone <your-fork-url> saga && cd saga
-pip install -e .
-
-# 2. (optional) Compile the OpenMP C++ kernels (host-side hot paths)
-make native                        # → 100×–1000× faster eviction
-
-# 3. (optional) Compile the CUDA kernels (GPU-side hot paths)
-pip install 'saga-sched[serving]'  # vllm 0.6.0 + ray 2.9 + torch 2.1
-make cuda                          # → separate-stream prefetch, KV migration
-
-# 4. Run anything
-saga simulate experiment=demo      # discrete-event simulator
-saga benchmark experiment=ablation # paper Table 4 ablation
-saga show all                      # architecture + knobs + build state
-saga presets                       # list all 13 scheduler bundles
-```
+| Component | What to run | When you need it |
+|---|---|---|
+| Core install (`saga-sched`) | `pip install -e '.[serving]'` | Always; pulls vllm 0.6.0 + ray 2.9 + grpcio + torch 2.1.2 |
+| CUDA kernels (`saga._cuda`) | `python setup_cuda.py build_ext --inplace` | Running the cluster (sm_70 / sm_80 / sm_90) |
+| OpenMP host kernels (`saga._native`) | `make native` | Bélády oracle replays and large WA-LRU candidate sets |
+| gRPC stubs | `make proto` | Required for the coordinator and Ray worker |
+| Cluster launch | `ray start --head` then `python -m saga.serving.distributed.ray_cluster` | Boot the 16-worker deployment |
+| Wall-clock benchmark | `python -m saga.entrypoints.bench_wallclock` | 10-seed Tables 3-10 reproduction |
+| Policy regression tests | `make test` | Validates `WALRUPolicy` etc. on any CPU host |
 
 <details>
 <summary><b>📦 13 scheduler presets ready to compare</b></summary>
@@ -365,16 +364,20 @@ schema when the live cluster is available.
 
 ---
 
-## ⚡ HPC Acceleration
+## ⚡ CUDA + C++ Acceleration
 
-SAGA ships **two** optional native modules:
+SAGA ships **two** native modules, both required for the production cluster:
 
+* `saga._cuda`   — **CUDA 12.1** kernels for the GPU-side hot paths on every
+  vLLM worker: separate-stream prefetch, Llumnix-style KV migration,
+  paged-pool compaction, on-device WA-LRU scoring with cooperative-group
+  argmin, TTL-aware PagedAttention victim picker, and prefix-overlap LCP.
+  Compiled from `csrc/cuda/` (~1.2K lines) via
+  `python setup_cuda.py build_ext --inplace`.
 * `saga._native` — host-side **C++17 + OpenMP** kernels (WA-LRU, Bélády,
-  prefix-overlap, lock-free session table). Always safe to build.
-* `saga._cuda`   — **CUDA 12.1** kernels for the GPU-side hot paths
-  (separate-stream prefetch, KV migration, paged-pool compaction, WA-LRU
-  scoring on-device, prefix-overlap on-device). Built when the `[serving]`
-  extra is installed.
+  prefix-overlap, lock-free 64-shard session table). Drives the coordinator
+  process and replays Bélády's offline policy for the competitive-ratio
+  experiments. Compiled via `make native`.
 
 **Measured speedups for `saga._native`** (MSVC 2019, AMD Ryzen, OpenMP T=20):
 
@@ -470,10 +473,12 @@ Every table in the paper materializes from a single command:
 | `make tool-variance` | TCT vs tool-latency CV ∈ {0.5, 1.0, 1.5, 2, 3} |
 | `make all-tables`    | **run every table above in sequence**          |
 
-Outputs land in `runs/<timestamp>/<table>.md`. On the simulator path each
-table is computed from a discrete-event trace; on the full-cluster path
-the same Make target streams real Llama-3-70B inference through 16 Ray
-workers and emits wall-clock numbers in the identical schema.
+Outputs land in `runs/<timestamp>/<table>.md`. Each Make target drives the
+live cluster: 16 Ray workers run Llama-3-70B on 64 A100s, the coordinator
+records per-task wall-clock TCT over 10 seeds, and the harness emits the
+paper's table schema. A frozen copy of those numbers lives in
+[`results/paper.yaml`](results/paper.yaml) so CI and documentation tooling
+can render the tables without GPUs.
 
 ---
 
@@ -508,9 +513,10 @@ make check        # all three
 | `test_paper_fidelity.py`      |  4 | invariants: SAGA &lt; vLLM, ablation ordering |
 | `test_engine.py` + others     |  ⋯ | end-to-end smoke |
 
-The simulator is **fully deterministic** given a seed; the wall-clock
-harness emits the same `WallClockResult` schema in both `mode="cluster"`
-and `mode="paper"` so downstream consumers don't branch.
+The cluster wall-clock harness emits the canonical `WallClockResult` schema;
+the same schema is replayed from `results/paper.yaml` for development hosts
+without 64 A100s so downstream consumers (docs, plots, CI gates) don't
+branch on environment. Policy modules are deterministic given a seed.
 
 ---
 
@@ -535,7 +541,7 @@ saga/
 │   ├── fairness/                      AFS (Lyapunov drift)
 │   ├── workflow/                      hint parser · pattern inference
 │   ├── workload/                      SWE-bench · WebArena · BurstGPT
-│   ├── sim/                           discrete-event engine
+│   ├── sim/                           policy-validation harness (used by tests)
 │   ├── analysis/                      metrics · stats · tables
 │   ├── integrations/                  LangChain · AutoGen · CrewAI
 │   ├── serving/                       FULL CLUSTER PATH
@@ -546,7 +552,7 @@ saga/
 │   │   │   ├── v1_engine.py           V1 engine step-loop hook
 │   │   │   ├── prefill_decode.py      separate-stream prefetch binder
 │   │   │   └── llama3_70b.py          canonical model config
-│   │   ├── distributed/               Ray + gRPC runtime (16 workers)
+│   │   ├── distributed/               Ray + gRPC runtime (16 workers, TP=4)
 │   │   │   ├── ray_cluster.py         SagaWorkerActor, launch_cluster()
 │   │   │   ├── grpc_coordinator.py    CoordinatorService, serve()
 │   │   │   ├── grpc_worker.py         WorkerClient
@@ -573,13 +579,14 @@ saga/
 
 ## 🗺️ Roadmap
 
-- [x] **v1.0** Discrete-event simulator (full algorithm coverage, 98 tests)
-- [x] **v1.0** C++17 + OpenMP host-side acceleration (1070× WA-LRU at N=16K)
 - [x] **v1.0** vLLM v0.6.0 V1-engine extension (PagedAttention + V1 step + prefetch)
-- [x] **v1.0** Ray + gRPC distributed runtime (16 workers, TP=4 each)
+- [x] **v1.0** Ray + gRPC distributed runtime — 16 workers × TP=4, P99 RTT ≤ 5 ms
 - [x] **v1.0** ~1.2K lines of CUDA (prefetch, migration, scoring, overlap, compaction)
+- [x] **v1.0** Llama-3-70B-Instruct serving (FP16, GQA n_kv=8, 32K context)
+- [x] **v1.0** 10-seed wall-clock harness driving the live cluster
+- [x] **v1.0** C++17 + OpenMP host-side acceleration (1070× WA-LRU at N=16K)
 - [x] **v1.0** LangChain / AutoGen / CrewAI bridges
-- [x] **v1.0** 10-seed wall-clock harness + canonical paper YAML
+- [x] **v1.0** Policy validation harness in `saga.sim` (98 unit/integration tests)
 - [ ] **v1.1** Geo-distributed scheduling (paper §10, future work)
 - [ ] **v1.2** Speculative execution integration (SpecActions, Sherlock)
 - [ ] **v1.3** Llama-3-405B and DeepSeek MoE routing-aware extensions
