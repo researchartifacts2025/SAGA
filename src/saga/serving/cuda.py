@@ -144,9 +144,10 @@ def walru_score(
 ) -> tuple[Any, Any] | None:
     if not _HAS_CUDA or _ext is None:
         return None
-    return _ext.walru_score(
+    result: tuple[Any, Any] = _ext.walru_score(
         recency, preuse, size_norm, pinned, alpha, beta, gamma, stream_ptr=stream_ptr
     )
+    return result
 
 
 def compact_pool(
@@ -160,9 +161,7 @@ def compact_pool(
     if not _HAS_CUDA or _ext is None:
         return 0
     return int(
-        _ext.compact_pool(
-            k_pool, v_pool, block_table, alive_mask, shape, stream_ptr=stream_ptr
-        )
+        _ext.compact_pool(k_pool, v_pool, block_table, alive_mask, shape, stream_ptr=stream_ptr)
     )
 
 

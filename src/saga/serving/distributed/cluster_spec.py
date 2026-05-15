@@ -24,7 +24,7 @@ class WorkerSpec:
     worker_id: int
     node_id: int
     gpu_indices: tuple[int, ...]  # local CUDA device ids on the node
-    nic: str = "mlx5_0"           # IB device used by NCCL
+    nic: str = "mlx5_0"  # IB device used by NCCL
 
     @property
     def cuda_visible_devices(self) -> str:

@@ -103,18 +103,19 @@ class WorkStealer:
 
         if ratio < self.r_max and not any(
             (now - self._idle_since.get(w.worker_id, now)) > self.t_idle_ms
-            for w in workers if w.queue_depth == 0
+            for w in workers
+            if w.queue_depth == 0
         ):
             return actions
 
         overloaded = sorted(
-            (w for w in workers if _load_score(w) > load_min * self.r_max
-             or w.queue_depth >= 2),
+            (w for w in workers if _load_score(w) > load_min * self.r_max or w.queue_depth >= 2),
             key=_load_score,
             reverse=True,
         )
         idle = [
-            w for w in workers
+            w
+            for w in workers
             if w.queue_depth == 0
             and (now - self._idle_since.get(w.worker_id, now)) > self.t_idle_ms
         ]

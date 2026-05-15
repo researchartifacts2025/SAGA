@@ -62,6 +62,7 @@ ext = CUDAExtension(
         str(CUDA_SRC / "prefix_overlap.cu"),
         str(CUDA_SRC / "walru_score_cuda.cu"),
         str(CUDA_SRC / "compact_pool.cu"),
+        str(CUDA_SRC / "paged_attention_walru.cu"),
         str(CUDA_SRC / "saga_cuda_pybind.cpp"),
     ],
     include_dirs=[str(CUDA_SRC)],

@@ -126,7 +126,9 @@ class SessionRouter:
         self._session_to_worker[session_id] = best.worker_id
         return RoutingDecision(
             worker_id=best.worker_id,
-            reason=("session_affinity_overloaded" if preferred is not None else "session_affinity_new"),
+            reason=(
+                "session_affinity_overloaded" if preferred is not None else "session_affinity_new"
+            ),
             cache_hit_expected=False,
         )
 

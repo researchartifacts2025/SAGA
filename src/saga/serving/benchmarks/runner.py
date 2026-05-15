@@ -115,9 +115,11 @@ class WallClockBenchmark:
                 mem = self.paper.memory_pct(s, workload=w)
                 out.append(
                     WallClockResult(
-                        system=s, workload=w,
+                        system=s,
+                        workload=w,
                         n_seeds=int(self.paper["n_seeds"]),
-                        tct_mean_s=mean, tct_std_s=std,
+                        tct_mean_s=mean,
+                        tct_std_s=std,
                         memory_utilisation_pct=mem,
                         source="paper_yaml",
                     )
@@ -147,7 +149,8 @@ class WallClockBenchmark:
                     var = sum((x - mean) ** 2 for x in samples) / max(1, len(samples) - 1)
                     out.append(
                         WallClockResult(
-                            system=system, workload=workload,
+                            system=system,
+                            workload=workload,
                             n_seeds=len(samples),
                             tct_mean_s=mean,
                             tct_std_s=var**0.5,
@@ -164,7 +167,10 @@ class WallClockBenchmark:
         return out
 
     def _drive_system(
-        self, actors: Iterable, system: str, workload: str,
+        self,
+        actors: Iterable,
+        system: str,
+        workload: str,
     ) -> list[float]:
         """Run ``system`` on ``workload`` for each seed, return TCTs in seconds.
 

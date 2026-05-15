@@ -68,10 +68,18 @@ def run_once(cfg: DictConfig) -> dict[str, Any]:
     cluster_cfg: ClusterConfig = preset.cluster
     coord_cfg: CoordinatorConfig = preset.coordinator
 
-    overrides = OmegaConf.to_container(cfg.cluster.get("overrides", {}), resolve=True) if cfg.get("cluster") else {}
+    overrides = (
+        OmegaConf.to_container(cfg.cluster.get("overrides", {}), resolve=True)
+        if cfg.get("cluster")
+        else {}
+    )
     if isinstance(overrides, dict):
         _apply_overrides(cluster_cfg, overrides)
-    sched_overrides = OmegaConf.to_container(cfg.scheduler.get("overrides", {}), resolve=True) if cfg.get("scheduler") else {}
+    sched_overrides = (
+        OmegaConf.to_container(cfg.scheduler.get("overrides", {}), resolve=True)
+        if cfg.get("scheduler")
+        else {}
+    )
     if isinstance(sched_overrides, dict):
         _apply_overrides(coord_cfg, sched_overrides)
 

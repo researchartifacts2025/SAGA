@@ -59,9 +59,7 @@ class GlobalCoordinator:
         self.cfg = cfg or CoordinatorConfig()
         self.rng = rng or RNG(seed=42)
 
-        self._workers: dict[int, _WorkerView] = {
-            w.worker_id: _WorkerView(w) for w in workers
-        }
+        self._workers: dict[int, _WorkerView] = {w.worker_id: _WorkerView(w) for w in workers}
 
         self.router = SessionRouter(
             strategy=self.cfg.routing_strategy,
@@ -77,9 +75,7 @@ class GlobalCoordinator:
         self.queue_strategy: QueueStrategy = build_strategy(self.cfg.queue_strategy)
 
         self._sessions: dict[str, Session] = {}
-        self._cached_predicates: dict[int, set[str]] = {
-            wid: set() for wid in self._workers
-        }
+        self._cached_predicates: dict[int, set[str]] = {wid: set() for wid in self._workers}
         self.last_epoch_ms: float = 0.0
 
     # ---------------------------------------------------- registration

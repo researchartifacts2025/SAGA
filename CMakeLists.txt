@@ -63,6 +63,7 @@ if (SAGA_BUILD_CUDA)
     csrc/cuda/prefix_overlap.cu
     csrc/cuda/walru_score_cuda.cu
     csrc/cuda/compact_pool.cu
+    csrc/cuda/paged_attention_walru.cu
     csrc/cuda/saga_cuda_pybind.cpp
   )
   target_include_directories(_cuda PRIVATE csrc/cuda)

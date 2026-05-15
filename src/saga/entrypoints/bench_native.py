@@ -57,9 +57,16 @@ def _bench_walru(n: int, repeats: int) -> tuple[float, float]:
 
     def _native_run() -> None:
         walru_select_victim_flat(
-            n_tokens, last_access, reuse, pinned,
-            now=now, tau_max=float(n), size_max=400.0,
-            alpha=0.3, beta=0.5, gamma=0.2,
+            n_tokens,
+            last_access,
+            reuse,
+            pinned,
+            now=now,
+            tau_max=float(n),
+            size_max=400.0,
+            alpha=0.3,
+            beta=0.5,
+            gamma=0.2,
         )
 
     def _python_run() -> None:

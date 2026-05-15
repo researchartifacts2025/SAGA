@@ -78,9 +78,7 @@ class FrameworkHintParser:
 
     # ------------------------------------------------------- normalization
 
-    def from_langchain_callbacks(
-        self, events: Iterable[dict[str, object]]
-    ) -> list[FrameworkHint]:
+    def from_langchain_callbacks(self, events: Iterable[dict[str, object]]) -> list[FrameworkHint]:
         """Parse a list of ``{event, tool, prompt_tokens, ...}`` callback dicts."""
         hints: list[FrameworkHint] = []
         idx = 0
@@ -106,9 +104,7 @@ class FrameworkHintParser:
                 )
         return hints
 
-    def from_autogen_messages(
-        self, messages: Iterable[dict[str, object]]
-    ) -> list[FrameworkHint]:
+    def from_autogen_messages(self, messages: Iterable[dict[str, object]]) -> list[FrameworkHint]:
         """Parse AutoGen-style ``{role, content, tool_calls, ...}`` messages."""
         hints: list[FrameworkHint] = []
         for i, msg in enumerate(messages):
@@ -132,9 +128,7 @@ class FrameworkHintParser:
             )
         return hints
 
-    def from_crewai_trace(
-        self, trace: Iterable[dict[str, object]]
-    ) -> list[FrameworkHint]:
+    def from_crewai_trace(self, trace: Iterable[dict[str, object]]) -> list[FrameworkHint]:
         """Parse CrewAI per-step trace entries."""
         hints: list[FrameworkHint] = []
         for i, step in enumerate(trace):

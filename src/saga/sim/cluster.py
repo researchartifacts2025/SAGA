@@ -103,9 +103,7 @@ def build_cluster(cfg: ClusterConfig) -> Cluster:
     for wid in range(n_workers):
         node_id = wid // max(1, cfg.gpus_per_node // cfg.tensor_parallel)
         first_gpu = (wid * cfg.tensor_parallel) % cfg.gpus_per_node
-        gpu_indices = tuple(
-            (first_gpu + i) % cfg.gpus_per_node for i in range(cfg.tensor_parallel)
-        )
+        gpu_indices = tuple((first_gpu + i) % cfg.gpus_per_node for i in range(cfg.tensor_parallel))
         workers.append(
             Worker(
                 worker_id=wid,

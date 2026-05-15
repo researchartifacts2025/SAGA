@@ -3,6 +3,8 @@
 
 .PHONY: help install install-dev demo simulate benchmark evaluate \
         tables ablation fairness sensitivity competitive \
+        native native-cmake native-clean cuda cuda-clean proto \
+        bench-wallclock bench-native \
         test test-fast lint format typecheck check clean
 
 .DEFAULT_GOAL := help
@@ -34,6 +36,24 @@ native-cmake: ## Build the native extension via CMake (with -march=native)
 
 native-clean: ## Remove compiled native artifacts
 	rm -rf build/ src/saga/_native*.so src/saga/_native*.pyd src/saga/_native*.dylib
+
+cuda: ## Build the CUDA kernels (separate-stream prefetch, WA-LRU, migration, etc.)
+	$(PIP) install "torch>=2.1.2" "pybind11>=2.11"
+	$(PYTHON) setup_cuda.py build_ext --inplace
+
+cuda-clean: ## Remove compiled CUDA artifacts
+	rm -rf build/ src/saga/_cuda*.so src/saga/_cuda*.pyd src/saga/_cuda*.dylib
+
+proto: ## Regenerate gRPC stubs from saga_coordinator.proto
+	$(PIP) install "grpcio>=1.60" "grpcio-tools>=1.60"
+	$(PYTHON) -m grpc_tools.protoc \
+		-I src/saga/serving/distributed/proto \
+		--python_out=src/saga/serving/distributed/proto \
+		--grpc_python_out=src/saga/serving/distributed/proto \
+		src/saga/serving/distributed/proto/saga_coordinator.proto
+
+bench-wallclock: ## 10-seed wall-clock TCT benchmark on the 64-A100 cluster
+	$(PYTHON) -m saga.entrypoints.bench_wallclock
 
 demo: ## Run a 60-second quick demo simulation
 	$(PYTHON) -m saga.entrypoints.simulate experiment=demo

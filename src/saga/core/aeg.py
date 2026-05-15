@@ -52,9 +52,7 @@ class AgentExecutionGraph:
     workload_kind: str = "generic"
     termination_prob: float = 0.05
 
-    _succ_index: dict[int, list[AEGEdge]] = field(
-        default_factory=dict, init=False, repr=False
-    )
+    _succ_index: dict[int, list[AEGEdge]] = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._succ_index = {}

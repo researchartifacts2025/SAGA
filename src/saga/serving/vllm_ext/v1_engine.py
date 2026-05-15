@@ -64,16 +64,14 @@ class V1EngineHook:
             return
         sched = getattr(engine_core, "scheduler", None)
         if sched is None:
-            log.warning(
-                "V1EngineHook: passed object has no .scheduler; hook is dormant."
-            )
+            log.warning("V1EngineHook: passed object has no .scheduler; hook is dormant.")
             self._installed_on = engine_core
             return
 
         self._orig_schedule = sched.schedule
         self._orig_update_from_output = sched.update_from_output
-        sched.schedule = self._patched_schedule  # type: ignore[method-assign]
-        sched.update_from_output = self._patched_update  # type: ignore[method-assign]
+        sched.schedule = self._patched_schedule
+        sched.update_from_output = self._patched_update
         self._installed_on = engine_core
         log.info("V1 engine hook installed.")
 

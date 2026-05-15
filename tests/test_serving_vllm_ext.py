@@ -98,9 +98,12 @@ def test_walru_hook_install_without_vllm_is_idempotent() -> None:
 def test_v1_engine_hook_stats_track_steps() -> None:
     workers = [
         Worker(
-            worker_id=i, node_id=0, gpu_indices=(i,),
+            worker_id=i,
+            node_id=0,
+            gpu_indices=(i,),
             kv_capacity_tokens=1_000_000,
-            decode_tokens_per_ms=38.0, prefill_tokens_per_ms=850.0,
+            decode_tokens_per_ms=38.0,
+            prefill_tokens_per_ms=850.0,
         )
         for i in range(2)
     ]
@@ -111,8 +114,12 @@ def test_v1_engine_hook_stats_track_steps() -> None:
         def __init__(self):
             self.waiting = []
             self.running = []
-        def schedule(self): return []
-        def update_from_output(self, *_a, **_kw): return None
+
+        def schedule(self):
+            return []
+
+        def update_from_output(self, *_a, **_kw):
+            return None
 
     class _FakeEngine:
         def __init__(self):
@@ -140,9 +147,16 @@ def test_prefill_decode_binder_install_without_cuda_is_safe() -> None:
 @pytest.mark.unit
 def test_model_config_kv_bytes_scales_with_dtype() -> None:
     fp32 = ModelConfig(
-        name="dummy", hf_id="x", n_layers=4, n_q_heads=8, n_kv_heads=8,
-        head_dim=64, hidden_size=512, max_context=2048,
-        tensor_parallel=1, dtype="fp32",
+        name="dummy",
+        hf_id="x",
+        n_layers=4,
+        n_q_heads=8,
+        n_kv_heads=8,
+        head_dim=64,
+        hidden_size=512,
+        max_context=2048,
+        tensor_parallel=1,
+        dtype="fp32",
     )
     fp16 = ModelConfig(**{**fp32.__dict__, "dtype": "fp16"})
     assert fp32.kv_bytes_per_token == 2 * fp16.kv_bytes_per_token

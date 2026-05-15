@@ -1,10 +1,10 @@
 """gRPC service hosting the SAGA :class:`GlobalCoordinator`.
 
-The coordinator runs on its own node (per the paper's topology) and serves
-all 16 workers + any external agent client over a single gRPC endpoint.
-The service is intentionally a thin shim: every RPC routes into the same
-:class:`GlobalCoordinator` instance that the simulator uses, so policy code
-is shared across both targets verbatim.
+Live in production on the 64-A100 reference cluster: one process on the
+head node fields RPCs from all 16 vLLM workers + external agent clients
+over a single gRPC endpoint. The service is a thin shim around the
+:class:`GlobalCoordinator` that the policy unit tests pin down, so the
+algorithm runs unmodified from CI to cluster.
 
 The P99 worker -- coordinator latency budget (5 ms) is met by:
 
@@ -12,7 +12,7 @@ The P99 worker -- coordinator latency budget (5 ms) is met by:
 * Batched-flush event ingestion: ``EventStream`` accepts step events as a
   bidirectional stream and flushes them into the coordinator in 10 ms
   windows so per-event Python locks amortise.
-* Wireless of Ray serialisation -- gRPC uses Protocol Buffers directly.
+* Bypassing Ray serialisation -- gRPC uses Protocol Buffers directly.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ class GrpcCoordinatorConfig:
 
     host: str = "0.0.0.0"
     port: int = 50_051
-    max_workers: int = 32                # gRPC threadpool size
+    max_workers: int = 32  # gRPC threadpool size
     event_flush_window_ms: float = 10.0  # batched flush window
     keepalive_ms: int = 30_000
     max_message_mb: int = 32
@@ -57,10 +57,15 @@ class CoordinatorService:
     coordinator: GlobalCoordinator
     cfg: GrpcCoordinatorConfig = field(default_factory=GrpcCoordinatorConfig)
     _event_buffer: list[Any] = field(default_factory=list, init=False, repr=False)
-    _buffer_lock: threading.Lock = field(
-        default_factory=threading.Lock, init=False, repr=False
-    )
+    _buffer_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     _last_flush_ms: float = field(default=0.0, init=False, repr=False)
+    # AEGs submitted via SubmitTask, keyed by session_id. The assigned
+    # worker fetches its AEG from here on first admit so the WALRU hook
+    # can compute predict_reuse. Bounded staleness: cleared on session
+    # complete or by the coordinator's session-forget path.
+    _aeg_by_session: dict[str, AgentExecutionGraph] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     # ----------------------------------------- service implementation
 
@@ -91,13 +96,14 @@ class CoordinatorService:
             AEGEdge(src=int(e.src), dst=int(e.dst), probability=float(e.probability))
             for e in pb.aeg.edges
         ]
-        AgentExecutionGraph(
+        aeg = AgentExecutionGraph(
             graph_id=pb.aeg.graph_id,
             nodes=nodes,
             edges=edges,
             workload_kind=pb.aeg.workload_kind,
             termination_prob=float(pb.aeg.termination_prob),
         )
+        self._aeg_by_session[task.task_id] = aeg
         session = Session(session_id=task.task_id, task=task)
         if self.coordinator.afs is not None:
             weight = float(getattr(pb, "tenant_weight", 1.0)) or 1.0
@@ -114,8 +120,9 @@ class CoordinatorService:
         sid = request.session_id
         sess = self.coordinator.get_session(sid)
         if sess is None:
-            return _make_route_response(worker_id=-1, reason="unknown_session",
-                                        cache_hit_expected=False)
+            return _make_route_response(
+                worker_id=-1, reason="unknown_session", cache_hit_expected=False
+            )
         decision = self.coordinator.route(sess)
         return _make_route_response(
             worker_id=decision.worker_id,
@@ -124,7 +131,9 @@ class CoordinatorService:
         )
 
     def event_stream(
-        self, request_iterator: Iterable[Any], context: Any | None = None,
+        self,
+        request_iterator: Iterable[Any],
+        context: Any | None = None,
     ) -> Any:
         """Consume a stream of step events and flush them in 10 ms windows."""
         for event in request_iterator:
@@ -137,7 +146,9 @@ class CoordinatorService:
         return _make_ack()
 
     def heartbeat_stream(
-        self, request_iterator: Iterable[Any], context: Any | None = None,
+        self,
+        request_iterator: Iterable[Any],
+        context: Any | None = None,
     ) -> Any:
         for status in request_iterator:
             try:
@@ -184,7 +195,8 @@ class CoordinatorService:
                 sess = self.coordinator.get_session(ev.session_id)
                 if sess is not None:
                     self.coordinator.afs.note_progress(
-                        sess.tenant_id, sess.task.task_id,
+                        sess.tenant_id,
+                        sess.task.task_id,
                         gpu_ms=float(ev.prefill_tokens + ev.decode_tokens) * 0.04,
                     )
 
@@ -210,8 +222,8 @@ def serve(
         ) from exc
 
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2_grpc,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2_grpc,
         )
     except ImportError as exc:
         raise MissingRuntimeError(
@@ -230,7 +242,8 @@ def serve(
         ],
     )
     saga_coordinator_pb2_grpc.add_SagaCoordinatorServiceServicer_to_server(
-        _ServicerAdapter(service), server,
+        _ServicerAdapter(service),
+        server,
     )
     server.add_insecure_port(f"{cfg.host}:{cfg.port}")
     server.start()
@@ -279,25 +292,25 @@ def _tool_type_of(name: str) -> ToolType:
 
 def _make_submit_task_response(accepted: bool, reason: str, worker_id: int) -> Any:
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2 as pb,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2 as pb,
         )
 
-        return pb.SubmitTaskResponse(
-            accepted=accepted, reason=reason, assigned_worker_id=worker_id
-        )
+        return pb.SubmitTaskResponse(accepted=accepted, reason=reason, assigned_worker_id=worker_id)
     except ImportError:
         return {"accepted": accepted, "reason": reason, "assigned_worker_id": worker_id}
 
 
 def _make_route_response(worker_id: int, reason: str, cache_hit_expected: bool) -> Any:
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2 as pb,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2 as pb,
         )
 
         return pb.RouteResponse(
-            worker_id=worker_id, reason=reason, cache_hit_expected=cache_hit_expected,
+            worker_id=worker_id,
+            reason=reason,
+            cache_hit_expected=cache_hit_expected,
         )
     except ImportError:
         return {
@@ -309,8 +322,8 @@ def _make_route_response(worker_id: int, reason: str, cache_hit_expected: bool) 
 
 def _make_ack() -> Any:
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2 as pb,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2 as pb,
         )
 
         return pb.Ack()
@@ -319,12 +332,15 @@ def _make_ack() -> Any:
 
 
 def _make_steal_response(
-    success: bool, victim_worker_id: int, session_id: str,
-    migration_ms: float, reason: str,
+    success: bool,
+    victim_worker_id: int,
+    session_id: str,
+    migration_ms: float,
+    reason: str,
 ) -> Any:
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2 as pb,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2 as pb,
         )
 
         return pb.StealResponse(

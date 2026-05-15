@@ -88,6 +88,7 @@ saga-simulate = "saga.entrypoints.simulate:main"
 saga-benchmark = "saga.entrypoints.benchmark:main"
 saga-evaluate = "saga.entrypoints.evaluate:main"
 saga-bench-native = "saga.entrypoints.bench_native:main"
+saga-bench-wallclock = "saga.entrypoints.bench_wallclock:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

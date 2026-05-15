@@ -43,7 +43,7 @@ class WorkerClient:
                 install_hint="pip install 'saga-sched[serving]'",
             ) from exc
         try:
-            from saga.serving.distributed.proto import (  # type: ignore[import-not-found]
+            from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
                 saga_coordinator_pb2_grpc as stubs,
             )
         except ImportError as exc:

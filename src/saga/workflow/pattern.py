@@ -59,10 +59,7 @@ class PatternState:
         return self.counts.get((src, dst), 0) / total
 
     def best_successor(self, src: ToolType) -> tuple[ToolType, float] | None:
-        candidates = [
-            (dst, self.counts.get((src, dst), 0))
-            for dst in ToolType
-        ]
+        candidates = [(dst, self.counts.get((src, dst), 0)) for dst in ToolType]
         candidates = [(dst, c) for dst, c in candidates if c > 0]
         if not candidates:
             return None

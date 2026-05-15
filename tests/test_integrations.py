@@ -55,8 +55,20 @@ def test_autogen_adapter_consumes_messages() -> None:
 def test_crewai_adapter_consumes_trace() -> None:
     adapter = CrewAIAdapter(agent_type="crew_test")
     trace = [
-        {"step_index": 0, "tool": "shell", "prompt_tokens": 1500, "output_tokens": 100, "observation_tokens": 300},
-        {"step_index": 1, "tool": "browser", "prompt_tokens": 1600, "output_tokens": 120, "observation_tokens": 800},
+        {
+            "step_index": 0,
+            "tool": "shell",
+            "prompt_tokens": 1500,
+            "output_tokens": 100,
+            "observation_tokens": 300,
+        },
+        {
+            "step_index": 1,
+            "tool": "browser",
+            "prompt_tokens": 1600,
+            "output_tokens": 120,
+            "observation_tokens": 800,
+        },
     ]
     aeg = adapter.build_aeg(trace, graph_id="cr/0")
     assert len(aeg) == 2

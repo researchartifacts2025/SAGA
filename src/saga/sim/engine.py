@@ -253,9 +253,7 @@ class SimulatorEngine:
         session.state = SessionState.PENDING
         self.coordinator.register_session(session)
         decision = self.coordinator.route(session)
-        log.debug(
-            "arrival sid=%s -> w%d (%s)", sid, decision.worker_id, decision.reason
-        )
+        log.debug("arrival sid=%s -> w%d (%s)", sid, decision.worker_id, decision.reason)
         self._try_dispatch(decision.worker_id)
 
     # -------- dispatch from worker queue to inference
@@ -357,7 +355,10 @@ class SimulatorEngine:
             else 0.0
         )
 
-        if aeg.is_terminal(session.aeg_node_index) or session.n_steps_completed >= session.task.n_steps:
+        if (
+            aeg.is_terminal(session.aeg_node_index)
+            or session.n_steps_completed >= session.task.n_steps
+        ):
             self.queue.push(self._now, EventKind.TASK_COMPLETE, session_id=sid, worker_id=worker_id)
             self._try_dispatch(worker_id)
             return
@@ -500,6 +501,8 @@ class SimulatorEngine:
 # ------------------------------------------------------- helpers
 
 
-def stream_templates(arrivals: Iterable[tuple[float, AgentTaskTemplate]]) -> Iterator[AgentTaskTemplate]:
+def stream_templates(
+    arrivals: Iterable[tuple[float, AgentTaskTemplate]],
+) -> Iterator[AgentTaskTemplate]:
     for _t, tmpl in arrivals:
         yield tmpl

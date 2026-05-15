@@ -50,9 +50,12 @@ def test_worker_cuda_visible_devices_string() -> None:
 def test_coordinator_service_constructs() -> None:
     workers = [
         Worker(
-            worker_id=i, node_id=0, gpu_indices=(i,),
+            worker_id=i,
+            node_id=0,
+            gpu_indices=(i,),
             kv_capacity_tokens=1_000_000,
-            decode_tokens_per_ms=38.0, prefill_tokens_per_ms=850.0,
+            decode_tokens_per_ms=38.0,
+            prefill_tokens_per_ms=850.0,
         )
         for i in range(2)
     ]
@@ -68,9 +71,12 @@ def test_coordinator_service_constructs() -> None:
 def test_serve_without_grpc_raises_clear_error() -> None:
     workers = [
         Worker(
-            worker_id=0, node_id=0, gpu_indices=(0,),
+            worker_id=0,
+            node_id=0,
+            gpu_indices=(0,),
             kv_capacity_tokens=1_000_000,
-            decode_tokens_per_ms=38.0, prefill_tokens_per_ms=850.0,
+            decode_tokens_per_ms=38.0,
+            prefill_tokens_per_ms=850.0,
         )
     ]
     coord = GlobalCoordinator(workers=workers, cfg=CoordinatorConfig())

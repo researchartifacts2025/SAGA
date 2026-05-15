@@ -103,9 +103,7 @@ class WALRUBlockManagerHook:
 
     # -------------------------------------------------- workflow state
 
-    def register_aeg(
-        self, session_id: str, aeg: AgentExecutionGraph, node: int = 0
-    ) -> None:
+    def register_aeg(self, session_id: str, aeg: AgentExecutionGraph, node: int = 0) -> None:
         self.manager.register_aeg(session_id, aeg, node=node)
         self._aeg_by_sid[session_id] = aeg
         self._node_by_sid[session_id] = node
@@ -151,9 +149,11 @@ class WALRUBlockManagerHook:
     def install(self, vllm_engine: Any) -> None:
         """Patch the engine's BlockSpaceManagerV2 ``allocate`` / ``free``.
 
-        Without vLLM installed (simulator path) we still keep the hook
-        active for in-process accounting; only the actual vLLM seams are
-        skipped.
+        On the cluster this rewires the real vLLM allocator so every block
+        admission goes through SAGA's WA-LRU bookkeeping. If ``vllm`` is
+        not importable (CPU host, CI), the hook stays active for
+        in-process accounting only and logs a warning; the actual vLLM
+        seams are skipped because there is nothing to patch.
         """
         if self._installed_on is not None:
             return
@@ -198,8 +198,8 @@ class WALRUBlockManagerHook:
                 log.exception("SAGA forget hook failed; vLLM continues")
             return orig_free(seq_group, *args, **kwargs)
 
-        bm.allocate = _wrapped_allocate  # type: ignore[method-assign]
-        bm.free = _wrapped_free  # type: ignore[method-assign]
+        bm.allocate = _wrapped_allocate
+        bm.free = _wrapped_free
         bm._saga_orig_allocate = orig_allocate
         bm._saga_orig_free = orig_free
         self._installed_on = vllm_engine

@@ -16,8 +16,15 @@ from saga.serving.benchmarks import (
 def test_paper_yaml_loads_and_has_expected_keys() -> None:
     paper = load_paper_results()
     assert isinstance(paper, PaperResults)
-    for k in ("cluster", "model", "software", "e2e", "competitive_ratio",
-              "ablation_swe_bench", "slo_attainment_pct"):
+    for k in (
+        "cluster",
+        "model",
+        "software",
+        "e2e",
+        "competitive_ratio",
+        "ablation_swe_bench",
+        "slo_attainment_pct",
+    ):
         assert k in paper.raw
     assert paper.raw["model"]["name"] == "Llama-3-70B-Instruct"
     assert paper.raw["cluster"]["total_gpus"] == 64
@@ -73,9 +80,9 @@ def test_wall_clock_benchmark_auto_mode_falls_back_to_paper_without_serving_stac
 
 @pytest.mark.unit
 def test_format_results_returns_one_line_per_result() -> None:
-    bench = WallClockBenchmark(cfg=BenchmarkConfig(mode="paper",
-                                                    systems=("saga",),
-                                                    workloads=("swe_bench",)))
+    bench = WallClockBenchmark(
+        cfg=BenchmarkConfig(mode="paper", systems=("saga",), workloads=("swe_bench",))
+    )
     results = bench.run()
     text = WallClockBenchmark.format(results)
     assert "saga" in text

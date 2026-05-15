@@ -199,11 +199,7 @@ class WALRUPolicy(EvictionPolicy):
             cur = ctx.current_node.get(entry.session_id, entry.aeg_node_index)
             reuse = aeg.predict_reuse(cur, entry.n_tokens)
 
-        p_evict = (
-            self.alpha * recency_norm
-            + self.beta * (1.0 - reuse)
-            + self.gamma * size_norm
-        )
+        p_evict = self.alpha * recency_norm + self.beta * (1.0 - reuse) + self.gamma * size_norm
         return -p_evict
 
     def select_victim(

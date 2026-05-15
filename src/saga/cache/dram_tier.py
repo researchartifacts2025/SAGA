@@ -91,9 +91,7 @@ class DRAMPool:
         """
         evicted: list[KVCacheEntry] = []
         while self._used_tokens + entry.n_tokens > self.capacity_tokens and self._entries:
-            oldest_sid = min(
-                self._entries, key=lambda s: self._entries[s].last_access_time
-            )
+            oldest_sid = min(self._entries, key=lambda s: self._entries[s].last_access_time)
             old = self._entries.pop(oldest_sid)
             self._used_tokens -= old.n_tokens
             self._used_tokens = max(0, self._used_tokens)
@@ -189,9 +187,7 @@ class TieredCacheManager:
         if dram_hit:
             dram_entry = self.dram.evict(session_id)
             if dram_entry is not None:
-                swap_ms = self.swap_model.transfer_ms(
-                    dram_entry.n_tokens, contended=self.contended
-                )
+                swap_ms = self.swap_model.transfer_ms(dram_entry.n_tokens, contended=self.contended)
                 self.cumulative_swap_ms += swap_ms
                 dram_entry.last_access_time = now
                 self.base._entries[session_id] = dram_entry
@@ -206,9 +202,7 @@ class TieredCacheManager:
 
         if decision.evicted:
             for victim in decision.evicted:
-                swap_ms = self.swap_model.transfer_ms(
-                    victim.n_tokens, contended=self.contended
-                )
+                swap_ms = self.swap_model.transfer_ms(victim.n_tokens, contended=self.contended)
                 self.cumulative_swap_ms += swap_ms
                 self.dram.admit(victim, now)
 

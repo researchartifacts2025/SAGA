@@ -40,8 +40,9 @@ class PrefillDecodeBinder:
     """Bind SAGA's prefetch path to vLLM's prefill/decode executor.
 
     The binder is GPU-aware: it grabs handles to the worker's compute and
-    prefetch CUDA streams when :meth:`install` is called, and falls back to
-    no-op CPU-side prefetch in CI / simulator paths.
+    prefetch CUDA streams when :meth:`install` is called on a real vLLM
+    worker. On CPU-only hosts (CI, dev boxes) the binder logs a warning and
+    returns no-op zero-byte launches so unit tests still exercise the API.
     """
 
     n_streams: int = 1
@@ -69,7 +70,7 @@ class PrefillDecodeBinder:
             )
 
         try:
-            from saga import _cuda as native
+            from saga import _cuda as native  # type: ignore[attr-defined]
 
             self._native_module = native
         except Exception:
@@ -77,8 +78,7 @@ class PrefillDecodeBinder:
 
         self._installed_on = vllm_executor
         log.info(
-            "PrefillDecodeBinder installed (compute_stream=%s, prefetch_stream=%s, "
-            "native=%s)",
+            "PrefillDecodeBinder installed (compute_stream=%s, prefetch_stream=%s, native=%s)",
             self._compute_stream is not None,
             self._prefetch_stream is not None,
             self._native_module is not None,
@@ -104,15 +104,25 @@ class PrefillDecodeBinder:
     ) -> int:
         """Launch a separate-stream prefetch; returns approximate bytes copied."""
         if self._native_module is None or self._prefetch_stream is None:
-            self._n_prefetched += int(getattr(src_ids, "shape", [0])[0]) if hasattr(src_ids, "shape") else 0
+            self._n_prefetched += (
+                int(getattr(src_ids, "shape", [0])[0]) if hasattr(src_ids, "shape") else 0
+            )
             return 0
 
         stream_ptr = int(self._prefetch_stream.cuda_stream)
         bytes_copied = self._native_module.prefetch_blocks(
-            src_k, src_v, dst_k, dst_v, src_ids, dst_ids, shape,
+            src_k,
+            src_v,
+            dst_k,
+            dst_v,
+            src_ids,
+            dst_ids,
+            shape,
             stream_ptr=stream_ptr,
         )
-        self._n_prefetched += int(getattr(src_ids, "shape", [0])[0]) if hasattr(src_ids, "shape") else 0
+        self._n_prefetched += (
+            int(getattr(src_ids, "shape", [0])[0]) if hasattr(src_ids, "shape") else 0
+        )
         return int(bytes_copied)
 
     def sync_compute_with_prefetch(self) -> None:

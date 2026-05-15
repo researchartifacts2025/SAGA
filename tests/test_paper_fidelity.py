@@ -72,9 +72,7 @@ def test_saga_no_worse_than_vllm_apc_on_swe_bench() -> None:
     saga = _run_preset(preset_saga(), seed=42)
     apc = _run_preset(preset_vllm_apc(), seed=42)
     # Allow a 1.05x margin: at this scale the differences are small.
-    assert saga <= apc * 1.05, (
-        f"SAGA TCT ({saga:.2f}s) regressed vs vLLM+APC ({apc:.2f}s)."
-    )
+    assert saga <= apc * 1.05, f"SAGA TCT ({saga:.2f}s) regressed vs vLLM+APC ({apc:.2f}s)."
 
 
 @pytest.mark.integration

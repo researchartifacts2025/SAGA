@@ -10,7 +10,9 @@ from saga.workload import build_workload
 from saga.workload.base import WorkloadSpec
 
 
-def _build_engine(preset_name: str, seed: int = 0, horizon_ms: float = 600_000.0) -> SimulatorEngine:
+def _build_engine(
+    preset_name: str, seed: int = 0, horizon_ms: float = 600_000.0
+) -> SimulatorEngine:
     preset = get_preset(preset_name)
     return SimulatorEngine(
         preset.cluster,

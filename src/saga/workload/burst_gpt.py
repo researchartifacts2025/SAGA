@@ -114,8 +114,13 @@ class BurstGPTWorkload(WorkloadGenerator):
         tenant_idx: int,
         index: int,
     ) -> AgentTaskTemplate:
-        n_steps = max(1, min(profile.max_steps, int(round(rng.gamma(2.0, profile.mean_steps / 2.0)))))
-        tools = [ToolType.CODE_EXECUTION if rng.uniform() < 0.5 else ToolType.WEB_API for _ in range(n_steps)]
+        n_steps = max(
+            1, min(profile.max_steps, int(round(rng.gamma(2.0, profile.mean_steps / 2.0))))
+        )
+        tools = [
+            ToolType.CODE_EXECUTION if rng.uniform() < 0.5 else ToolType.WEB_API
+            for _ in range(n_steps)
+        ]
         prompt = rng.randint(profile.prompt_min, profile.prompt_max + 1)
         output = rng.randint(profile.output_min, profile.output_max + 1)
         obs = max(1, int(rng.gamma(2.0, 200.0)))

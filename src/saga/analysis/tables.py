@@ -74,8 +74,12 @@ def render_e2e_table(
         ours_runs = results[w].get(ours_label, [])
         base_runs = results[w].get(baseline_for_geomean, [])
         if ours_runs and base_runs:
-            ours_mean = float(np.mean([np.mean(r.tct_seconds()) for r in ours_runs if r.tct_seconds()]))
-            base_mean = float(np.mean([np.mean(r.tct_seconds()) for r in base_runs if r.tct_seconds()]))
+            ours_mean = float(
+                np.mean([np.mean(r.tct_seconds()) for r in ours_runs if r.tct_seconds()])
+            )
+            base_mean = float(
+                np.mean([np.mean(r.tct_seconds()) for r in base_runs if r.tct_seconds()])
+            )
             if ours_mean > 0:
                 ours_per_w.append(ours_mean)
                 base_per_w.append(base_mean)
@@ -120,7 +124,15 @@ def render_ablation_table(
             ]
         )
 
-    rows.sort(key=lambda r: 0.0 if r[0] == full_label else float(r[2].rstrip("%").replace("+", "")) if r[2] != "(baseline)" else 0.0)
+    rows.sort(
+        key=lambda r: (
+            0.0
+            if r[0] == full_label
+            else float(r[2].rstrip("%").replace("+", ""))
+            if r[2] != "(baseline)"
+            else 0.0
+        )
+    )
     header = ["Configuration", "TCT (s)", "vs Full"]
     return "## Ablation\n\n" + tabulate(rows, headers=header, tablefmt=fmt)
 

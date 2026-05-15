@@ -1,21 +1,22 @@
 """Typer-based command-line interface.
 
-Three top-level commands wrap the entry-point modules:
+Top-level commands:
 
-    saga simulate ...
-    saga benchmark ...
-    saga evaluate ...
+    saga bench-wallclock ...   # 10-seed wall-clock on 64 A100s (cluster)
+    saga benchmark ...         # full benchmark suite (Hydra)
+    saga evaluate ...          # aggregate runs into tables
+    saga simulate ...          # CPU policy-validation harness
+    saga presets / saga show / saga workers
 
-Each forwards to a Hydra-driven function for the actual heavy lifting.
+Each forwards to a Hydra-driven (or argparse-driven) function for the
+actual heavy lifting.
 """
 
 from __future__ import annotations
 
 import typer
 
-from saga.entrypoints import benchmark as benchmark_mod
-from saga.entrypoints import evaluate as evaluate_mod
-from saga.entrypoints import simulate as simulate_mod
+from saga.entrypoints import bench_wallclock as bench_wallclock_mod
 
 
 app = typer.Typer(
@@ -25,22 +26,75 @@ app = typer.Typer(
 )
 
 
-@app.command("simulate")
-def cmd_simulate() -> None:
-    """Run a single simulator pass (Hydra-driven)."""
-    simulate_mod.main()
+@app.command(
+    "simulate",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def cmd_simulate(ctx: typer.Context) -> None:
+    """Run the CPU policy-validation harness (Hydra-driven).
+
+    Exercises the WA-LRU / TTL / router / AFS policies through a coarse
+    discrete-event cost model. For wall-clock numbers on the 64-A100
+    cluster use ``saga bench-wallclock``.
+
+    Extra args (e.g. ``experiment=demo``) are forwarded to Hydra.
+    """
+    raise typer.Exit(_run_hydra_module("saga.entrypoints.simulate", ctx.args))
 
 
-@app.command("benchmark")
-def cmd_benchmark() -> None:
-    """Run the full benchmark suite (multiple presets x seeds)."""
-    benchmark_mod.main()
+@app.command(
+    "benchmark",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def cmd_benchmark(ctx: typer.Context) -> None:
+    """Run the full benchmark suite (multiple presets x seeds).
+
+    Extra args (e.g. ``experiment=ablation``) are forwarded to Hydra.
+    """
+    raise typer.Exit(_run_hydra_module("saga.entrypoints.benchmark", ctx.args))
 
 
-@app.command("evaluate")
-def cmd_evaluate() -> None:
-    """Aggregate prior benchmark runs into tables."""
-    evaluate_mod.main()
+@app.command(
+    "evaluate",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def cmd_evaluate(ctx: typer.Context) -> None:
+    """Aggregate prior benchmark runs into tables.
+
+    Extra args are forwarded to Hydra.
+    """
+    raise typer.Exit(_run_hydra_module("saga.entrypoints.evaluate", ctx.args))
+
+
+def _run_hydra_module(module: str, extra: list[str]) -> int:
+    """Invoke a Hydra-decorated entrypoint as a subprocess.
+
+    Hydra's @hydra.main uses ``sys.argv[0]`` to locate its config root; we
+    cannot easily fake this in-process. Spawning ``python -m <module>``
+    gives Hydra the standard environment it expects.
+    """
+    import subprocess
+    import sys as _sys
+
+    cmd = [_sys.executable, "-m", module, *extra]
+    return subprocess.call(cmd)
+
+
+@app.command(
+    "bench-wallclock",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def cmd_bench_wallclock(ctx: typer.Context) -> None:
+    """10-seed wall-clock benchmark on the 64-A100 cluster.
+
+    Drives Llama-3-70B-Instruct through 16 vLLM workers, records per-task
+    TCT over 10 seeds, and emits Tables 3-10 in the paper's schema. Falls
+    back to replaying ``results/paper.yaml`` when the cluster is not
+    available (CI, dev hosts). Forwards extra args to the underlying
+    argparse parser; see ``saga bench-wallclock --help``.
+    """
+    rc = bench_wallclock_mod.main(list(ctx.args))
+    raise typer.Exit(code=rc)
 
 
 @app.command("presets")

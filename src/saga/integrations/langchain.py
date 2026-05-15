@@ -139,8 +139,7 @@ class LangChainAdapter:
             )
         except ImportError as exc:
             raise ImportError(
-                "LangChain is not installed; "
-                "use the record_* methods directly for unit tests."
+                "LangChain is not installed; use the record_* methods directly for unit tests."
             ) from exc
 
         bridge = self

@@ -131,7 +131,11 @@ def tenant_class_slo(
     def _default(tid: str) -> str:
         for t in result.tasks:
             if t.tenant_id == tid:
-                return t.workload_kind.replace("burst_", "") if t.workload_kind.startswith("burst_") else "all"
+                return (
+                    t.workload_kind.replace("burst_", "")
+                    if t.workload_kind.startswith("burst_")
+                    else "all"
+                )
         return "all"
 
     fn = classifier or _default

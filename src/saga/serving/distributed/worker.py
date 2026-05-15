@@ -95,12 +95,13 @@ class SagaWorker:
     ) -> dict[str, Any]:
         if self._engine is None:
             raise RuntimeError("worker not started; call start() first")
-        return self._engine.generate(
+        result: dict[str, Any] = self._engine.generate(
             prompts=prompts,
             session_id=session_id,
             tenant_id=tenant_id,
             max_tokens=max_tokens,
         )
+        return result
 
     def heartbeat(self) -> dict[str, Any]:
         return {

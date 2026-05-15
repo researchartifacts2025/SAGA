@@ -61,12 +61,21 @@ class SagaCoordinator:
         """Build a coordinator from the paper's reference cluster spec."""
         sc = cls(
             coordinator_config=coordinator_config or CoordinatorConfig(),
-            grpc_config=grpc_config or GrpcCoordinatorConfig(
-                host="0.0.0.0", port=spec.coordinator_port
-            ),
+            grpc_config=grpc_config
+            or GrpcCoordinatorConfig(host="0.0.0.0", port=spec.coordinator_port),
         )
+        # Throughput defaults: prefill ~850 tok/ms, decode ~38 tok/ms
+        # calibrated to Llama-3-70B-Instruct on TP=4 A100-80GB (see
+        # docs/EXPERIMENTAL_DETAILS.md, "Policy-Validation Cost Model").
         sc.bind_workers(
-            Worker(worker_id=w.worker_id, capacity_tokens=worker_capacity_tokens)
+            Worker(
+                worker_id=w.worker_id,
+                node_id=w.node_id,
+                gpu_indices=w.gpu_indices,
+                kv_capacity_tokens=worker_capacity_tokens,
+                decode_tokens_per_ms=38.0,
+                prefill_tokens_per_ms=850.0,
+            )
             for w in spec.workers()
         )
         return sc
@@ -76,12 +85,8 @@ class SagaCoordinator:
 
     def bind_workers(self, workers: Iterable[Worker]) -> GlobalCoordinator:
         """Construct the underlying :class:`GlobalCoordinator`."""
-        self._coordinator = GlobalCoordinator(
-            workers=list(workers), cfg=self.coordinator_config
-        )
-        self._service = CoordinatorService(
-            coordinator=self._coordinator, cfg=self.grpc_config
-        )
+        self._coordinator = GlobalCoordinator(workers=list(workers), cfg=self.coordinator_config)
+        self._service = CoordinatorService(coordinator=self._coordinator, cfg=self.grpc_config)
         return self._coordinator
 
     @property

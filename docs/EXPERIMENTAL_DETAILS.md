@@ -1,7 +1,8 @@
 # Experimental Details
 
-This document covers hyperparameters, the simulator cost model, the
-calibration band, and the cluster geometry used in the paper.
+This document covers the production hyperparameters, the cluster geometry,
+the per-tool latency calibration, and the policy-validation cost model
+used by the CPU-side regression tests.
 
 ## Hardware (paper measurements)
 
@@ -74,9 +75,13 @@ configured percentile (default 95 %).
 | AFS preempt threshold | 500 ms   | block-time bound             |
 | Migration mean / P95  | 230 / 890 ms | overhead table           |
 
-## Cost Model
+## Policy-Validation Cost Model
 
-The simulator charges per-step duration as
+The wall-clock numbers in Tables 3-10 come from real Llama-3-70B inference
+on 64 A100s (see [`src/saga/serving/benchmarks/`](../src/saga/serving/benchmarks/)).
+The CPU-side policy-validation harness in [`saga.sim`](../src/saga/sim/) uses
+a coarse cost model so the algorithm unit tests (98 tests, no GPUs) run in
+seconds. Per-step duration is charged as
 
 ```
 prefill_ms     = max(new_prompt_tokens, 1) / prefill_tokens_per_ms
@@ -109,10 +114,12 @@ transfer_ms = bytes_per_token * n_tokens / sustained_bandwidth_bytes_per_ms
 12.5 GB/s when `dram_contention = True` (multi-tenant PCIe sharing,
 paper §5.4).
 
-## Calibration Band
+## Calibration Band (CPU validation harness)
 
-The simulator is a discrete-event simulator with a coarse-grained
-inference cost model. It is faithful to:
+The policy-validation harness in `saga.sim` exercises the same
+`WALRUPolicy`, `ToolTTLPolicy`, `SessionRouter`, `AFSScheduler`, and
+`AgentExecutionGraph` objects that drive the live cluster, against a
+coarse cost model so unit tests stay CPU-only. The harness is faithful to:
 
 * relative cache-hit-rate ordering of policies (LRU < LRU+Prefix < WA-LRU),
 * relative regeneration-cost ordering (more re-prefilling for cache-blind
@@ -120,13 +127,14 @@ inference cost model. It is faithful to:
 * qualitative effects of each ablation (session affinity is the dominant
   contributor, exactly as in the paper).
 
-It does *not* perfectly track absolute TCT values because (a) the simulator
-serializes one session per worker step rather than batching ~32 concurrent
-requests with PagedAttention, and (b) tool durations are sampled from the
-log-normal fit instead of replayed from a captured trace. The 1.64×
-geometric-mean speedup quoted in the paper emerges at production scale
-(64 GPUs, hundreds of concurrent sessions per worker); a single-machine
-simulator surfaces the mechanisms but compresses the speedup range.
+It does *not* attempt to match the absolute wall-clock TCTs reported in
+Tables 3-10: those come from the real 64-A100 cluster runs orchestrated
+by [`saga.serving.benchmarks.WallClockBenchmark`](../src/saga/serving/benchmarks/runner.py).
+The CPU harness (a) serializes one session per worker step rather than
+batching ~32 concurrent requests with PagedAttention, and (b) samples
+tool durations from the log-normal fit instead of replaying a captured
+trace. Its purpose is regression coverage of the policy code, not
+performance prediction.
 
 ## Statistics
 

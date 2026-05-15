@@ -75,9 +75,13 @@ def walru_select_victim(
             views.append(v)
         return int(
             _ext.walru_select_victim(
-                views, float(now),
-                float(max(1.0, tau_max)), int(max(1, size_max)),
-                float(alpha), float(beta), float(gamma),
+                views,
+                float(now),
+                float(max(1.0, tau_max)),
+                int(max(1, size_max)),
+                float(alpha),
+                float(beta),
+                float(gamma),
             )
         )
 

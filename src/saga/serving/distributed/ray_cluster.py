@@ -52,8 +52,11 @@ class RayClusterConfig:
 class SagaWorkerActor:
     """One vLLM worker actor.
 
-    Without Ray installed this class works as a plain object, allowing the
-    same code path to run under tests and in the simulator.
+    Hosts a real :class:`SagaVLLMEngine` (Llama-3-70B-Instruct at TP=4) on
+    its 4 A100s, registers with the gRPC coordinator at boot, and accepts
+    submit / heartbeat / shutdown Ray-RPC calls. Without Ray installed the
+    class still works as a plain object so the policy unit tests can
+    exercise the actor surface without a Ray cluster.
     """
 
     def __init__(
@@ -65,9 +68,7 @@ class SagaWorkerActor:
     ) -> None:
         self.spec = spec
         self.model = model
-        os.environ.setdefault(
-            "CUDA_VISIBLE_DEVICES", spec.cuda_visible_devices
-        )
+        os.environ.setdefault("CUDA_VISIBLE_DEVICES", spec.cuda_visible_devices)
         self.engine = SagaVLLMEngine(model_config=model)
         self.client = WorkerClient(
             host=coordinator_host,
@@ -80,8 +81,11 @@ class SagaWorkerActor:
     def boot(self) -> None:
         # In real-cluster mode this calls ``engine.serve(workers=...)`` but
         # workers is built from the cluster spec by ``launch_cluster``.
-        log.info("SagaWorkerActor[%d] booted (gpus=%s)",
-                 self.spec.worker_id, self.spec.cuda_visible_devices)
+        log.info(
+            "SagaWorkerActor[%d] booted (gpus=%s)",
+            self.spec.worker_id,
+            self.spec.cuda_visible_devices,
+        )
 
     def submit(
         self,
@@ -111,8 +115,11 @@ class SagaWorkerActor:
             self.client.close()
         except Exception:
             pass
-        log.info("SagaWorkerActor[%d] shutdown after %.1fs",
-                 self.spec.worker_id, time.monotonic() - self._started_at)
+        log.info(
+            "SagaWorkerActor[%d] shutdown after %.1fs",
+            self.spec.worker_id,
+            time.monotonic() - self._started_at,
+        )
 
 
 def launch_cluster(cfg: RayClusterConfig | None = None) -> list[Any]:
@@ -121,7 +128,7 @@ def launch_cluster(cfg: RayClusterConfig | None = None) -> list[Any]:
     workers_specs = cfg.cluster_spec.workers()
 
     try:
-        import ray  # type: ignore[import-not-found]
+        import ray
     except ImportError:
         log.warning(
             "ray not installed; running workers as in-process Python objects "
@@ -156,7 +163,9 @@ def launch_cluster(cfg: RayClusterConfig | None = None) -> list[Any]:
     ray.get([h.boot.remote() for h in handles])
     log.info(
         "Launched %d Ray worker actors against coordinator %s:%d",
-        len(handles), cfg.coordinator_host, cfg.coordinator_port,
+        len(handles),
+        cfg.coordinator_host,
+        cfg.coordinator_port,
     )
     return handles
 
@@ -164,8 +173,8 @@ def launch_cluster(cfg: RayClusterConfig | None = None) -> list[Any]:
 def _make_worker_status(worker_id: int, stats: dict[str, Any]) -> Any:
     coord_stats = stats.get("coordinator", {}) if isinstance(stats, dict) else {}
     try:
-        from saga.serving.distributed.proto import (
-            saga_coordinator_pb2 as pb,  # type: ignore[import-not-found]
+        from saga.serving.distributed.proto import (  # type: ignore[attr-defined]
+            saga_coordinator_pb2 as pb,
         )
 
         return pb.WorkerStatus(

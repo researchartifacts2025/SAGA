@@ -131,7 +131,9 @@ def _e2e(cfg: DictConfig, out_dir: Path) -> None:
     table = render_e2e_table(results_by_workload, ours_label="saga")
     console.print(table)
     (out_dir / "e2e.md").write_text(table)
-    (out_dir / "e2e.json").write_text(json.dumps(_serialize(results_by_workload), indent=2, default=float))
+    (out_dir / "e2e.json").write_text(
+        json.dumps(_serialize(results_by_workload), indent=2, default=float)
+    )
 
 
 # --------------------------------------------------------- ablation
@@ -159,7 +161,9 @@ def _ablation(cfg: DictConfig, out_dir: Path) -> None:
     table = render_ablation_table(results, full_label="saga")
     console.print(table)
     (out_dir / "ablation.md").write_text(table)
-    (out_dir / "ablation.json").write_text(json.dumps(_serialize({"swe": results}), indent=2, default=float))
+    (out_dir / "ablation.json").write_text(
+        json.dumps(_serialize({"swe": results}), indent=2, default=float)
+    )
 
 
 # --------------------------------------------------------- fairness
@@ -188,7 +192,9 @@ def _fairness(cfg: DictConfig, out_dir: Path) -> None:
     table = render_fairness_table(results)
     console.print(table)
     (out_dir / "fairness.md").write_text(table)
-    (out_dir / "fairness.json").write_text(json.dumps(_serialize({"burst": results}), indent=2, default=float))
+    (out_dir / "fairness.json").write_text(
+        json.dumps(_serialize({"burst": results}), indent=2, default=float)
+    )
 
 
 # --------------------------------------------------------- competitive
@@ -294,7 +300,10 @@ def _sensitivity(cfg: DictConfig, out_dir: Path) -> None:
     (out_dir / "sensitivity.md").write_text(table)
     (out_dir / "sensitivity.json").write_text(
         json.dumps(
-            {k: {str(v): _serialize_runs(runs) for v, runs in sw.items()} for k, sw in sweeps.items()},
+            {
+                k: {str(v): _serialize_runs(runs) for v, runs in sw.items()}
+                for k, sw in sweeps.items()
+            },
             indent=2,
             default=float,
         )
@@ -467,7 +476,9 @@ def _serialize_runs(runs: list[SimulationResult]) -> list[dict[str, Any]]:
 def main(cfg: DictConfig) -> None:
     setup_logging(cfg.get("log_level", "INFO"))
     if "experiment" not in cfg:
-        console.print("[red]No experiment selected[/red]; pass experiment=e2e_main (or ablation/...)")
+        console.print(
+            "[red]No experiment selected[/red]; pass experiment=e2e_main (or ablation/...)"
+        )
         return
     exp_name = cfg.experiment.get("name", "unknown")
     out_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)

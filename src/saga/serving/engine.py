@@ -83,9 +83,7 @@ class SagaVLLMEngine:
         if self.coordinator is None:
             if workers is None:
                 raise ValueError("Must supply either coordinator or workers list")
-            self.coordinator = GlobalCoordinator(
-                workers=workers, cfg=self.coordinator_config
-            )
+            self.coordinator = GlobalCoordinator(workers=workers, cfg=self.coordinator_config)
 
         args = EngineArgs(
             model=self.model_config.hf_id,
@@ -98,12 +96,14 @@ class SagaVLLMEngine:
         )
         self._vllm_engine = LLMEngine.from_engine_args(args)
 
-        # Install hooks.
+        # Install hooks. Paper §4.1 / Table 9: alpha=0.3, beta=0.5, gamma=0.2.
         self.block_hook = WALRUBlockManagerHook(
             block_size=16,
             n_kv_heads=self.model_config.n_kv_heads,
             head_dim=self.model_config.head_dim,
-            walru_alpha=self.coordinator_config.load_threshold * 0.0 + 0.3,
+            walru_alpha=0.3,
+            walru_beta=0.5,
+            walru_gamma=0.2,
         )
         self.block_hook.install(self._vllm_engine)
 
