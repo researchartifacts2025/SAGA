@@ -458,30 +458,6 @@ out = engine.generate("Hello", session_id="s0", tenant_id="alice")
 
 ---
 
-## 📐 Run the paper
-
-Every table in the paper materializes from a single command:
-
-| Make target          | What it measures                                 |
-|----------------------|--------------------------------------------------|
-| `make tables`        | end-to-end TCT across 7 systems                 |
-| `make ablation`      | each SAGA mechanism removed in turn             |
-| `make fairness`      | per-tenant SLO under multi-tenant load          |
-| `make competitive`   | WA-LRU / LRU / Prefix-LRU vs Bélády             |
-| `make sensitivity`   | 10-axis hyperparameter sweep                    |
-| `make bfsdfs`        | BFS vs DFS vs Hybrid execution strategy         |
-| `make tool-variance` | TCT vs tool-latency CV ∈ {0.5, 1.0, 1.5, 2, 3} |
-| `make all-tables`    | **run every table above in sequence**          |
-
-Outputs land in `runs/<timestamp>/<table>.md`. Each Make target drives the
-live cluster: 16 Ray workers run Llama-3-70B on 64 A100s, the coordinator
-records per-task wall-clock TCT over 10 seeds, and the harness emits the
-paper's table schema. A frozen copy of those numbers lives in
-[`results/paper.yaml`](results/paper.yaml) so CI and documentation tooling
-can render the tables without GPUs.
-
----
-
 ## 🧪 Testing & Quality
 
 ```bash
