@@ -41,7 +41,7 @@
 [**Architecture →**](#%EF%B8%8F-architecture) •
 [**Results →**](#-results) •
 [**CUDA →**](#-cuda--cpp-acceleration) •
-[**Integrations →**](#-use-it-as-a-library) 
+[**Integrations**](#-use-it-as-a-library) 
 </div>
 
 ---
